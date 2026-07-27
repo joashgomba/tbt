@@ -1,0 +1,321 @@
+/* Admin dashboard */
+
+.admin-dash-enterprise {
+  --dash-hero-dark: #0f172a;
+  --dash-hero-mid: #0b4f6c;
+  --dash-hero-accent: #7c2d12;
+}
+
+.hero-board {
+  background: linear-gradient(135deg, var(--dash-hero-dark) 0%, var(--dash-hero-mid) 42%, var(--dash-hero-accent) 100%);
+  border-radius: 1.25rem;
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+}
+
+.hero-emblem {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.hero-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.hero-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.hero-sub {
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 640px;
+  line-height: 1.6;
+  font-size: 0.9375rem;
+}
+
+.hero-user {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.875rem;
+}
+
+.hero-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.hero-stat {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+}
+
+.hero-stat .label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+  letter-spacing: 0.04em;
+}
+
+.hero-stat .value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 0.15rem;
+}
+
+.hero-stat .value.small {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.sla-alert-banner {
+  border-left: 4px solid #b91c1c !important;
+}
+
+.sla-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sla-preview-item {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.filter-card .card-header {
+  background: transparent;
+}
+
+.admin-lb-card .card-header {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.admin-lb-card .card-header h5 {
+  font-weight: 700;
+}
+
+.admin-dash__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-dash__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.admin-dash__meta {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.admin-dash__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-kpi {
+  border: 0;
+  color: #fff;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+}
+
+.admin-kpi .kpi-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+.admin-kpi .kpi-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-top: 0.15rem;
+}
+
+.admin-kpi .kpi-sub {
+  font-size: 0.78rem;
+  opacity: 0.82;
+  margin-top: 0.35rem;
+}
+
+.admin-kpi .kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.admin-kpi::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.admin-kpi-indigo { background: linear-gradient(135deg, #4f46e5, #0891b2); }
+.admin-kpi-emerald { background: linear-gradient(135deg, #059669, #34d399); }
+.admin-kpi-amber { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+.admin-kpi-fuchsia { background: linear-gradient(135deg, #c026d3, #6366f1); }
+.admin-kpi-slate { background: linear-gradient(135deg, #0f172a, #475569); }
+.admin-kpi-cyan { background: linear-gradient(135deg, #0b4f6c, #22d3ee); }
+
+.admin-dash-card {
+  border: 0;
+  border-radius: 0.875rem;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+  height: 100%;
+}
+
+.admin-dash-card .card-header {
+  background: transparent;
+  border-bottom: 1px solid #eef2f7;
+  padding: 1rem 1.25rem;
+}
+
+.admin-leaderboard-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.admin-leaderboard-rank {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8125rem;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.admin-leaderboard-rank--1 { background: #fef3c7; color: #b45309; }
+.admin-leaderboard-rank--2 { background: #e2e8f0; color: #475569; }
+.admin-leaderboard-rank--3 { background: #ffedd5; color: #c2410c; }
+
+.admin-dash-map {
+  height: 280px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-dash-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.admin-dash-empty {
+  color: #94a3b8;
+  font-size: 0.9375rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.admin-lb-summary__item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  height: 100%;
+}
+
+.admin-lb-summary__label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+
+.admin-lb-summary__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.admin-lb-table th {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  border-bottom-width: 1px;
+}
+
+.admin-lb-table td {
+  vertical-align: middle;
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.admin-lb-pct {
+  display: inline-block;
+  min-width: 4.5rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.admin-lb-pct--good { background: #d1fae5; color: #047857; }
+.admin-lb-pct--ok { background: #fef3c7; color: #b45309; }
+.admin-lb-pct--low { background: #fee2e2; color: #b91c1c; }
+
+.admin-lb-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #0b4f6c;
+  font-size: 0.9375rem;
+}
+
+.admin-lb-details summary:hover {
+  text-decoration: underline;
+}

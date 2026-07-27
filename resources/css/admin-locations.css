@@ -1,0 +1,114 @@
+/* Location management module */
+.loc-mgmt-enterprise .loc-hero {
+  background: linear-gradient(135deg, #0e7490 0%, #0891b2 45%, #06b6d4 100%);
+  color: #ecfeff;
+  border-radius: 1rem;
+}
+
+.loc-mgmt-enterprise .hero-emblem {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.loc-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.loc-stat {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.loc-stat .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.9; }
+.loc-stat .value { font-size: 1.35rem; font-weight: 700; }
+
+.loc-card { border: 1px solid #e2e8f0; border-radius: 0.85rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+
+.loc-tabs .nav-link {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.loc-tabs .nav-link.active {
+  background: #0891b2;
+  border-color: #0891b2;
+  color: #fff;
+}
+
+.loc-code-badge {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #ecfeff;
+  color: #0e7490;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.loc-status { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.loc-status--active { color: #059669; }
+.loc-status--inactive { color: #64748b; }
+
+.loc-detail-drawer { border-left: 1px solid #e2e8f0; background: #fafafa; min-height: 420px; }
+
+.loc-type-badge { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.loc-map-panel {
+  height: 360px;
+  border-radius: 0.85rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.loc-map-panel :deep(.leaflet-container) {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.85rem;
+}
+
+.loc-coord-picker-map {
+  height: 280px;
+  cursor: crosshair;
+}
+
+.loc-coord-picker-marker span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  background: #0891b2;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.35);
+}
+
+.loc-coord-picker :deep(.loc-coord-picker-marker) {
+  background: transparent;
+  border: none;
+}
+
+.loc-pin-card {
+  border: 1px solid #a5f3fc;
+  background: linear-gradient(180deg, #ecfeff 0%, #fff 100%);
+  border-radius: 0.85rem;
+  transition: box-shadow 0.15s ease;
+}
+
+.loc-pin-card:hover { box-shadow: 0 4px 12px rgba(8, 145, 178, 0.15); }
+
+@media (max-width: 767.98px) {
+  .loc-stat-grid { grid-template-columns: 1fr; }
+  .loc-map-panel { height: 280px; }
+}

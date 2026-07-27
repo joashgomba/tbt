@@ -1,0 +1,87 @@
+/* NTB category management module */
+.cat-mgmt-enterprise .cat-hero {
+  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 45%, #7c3aed 100%);
+  color: #f8fafc;
+  border-radius: 1rem;
+}
+
+.cat-mgmt-enterprise .hero-emblem {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.cat-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.cat-stat {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.cat-stat .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
+.cat-stat .value { font-size: 1.35rem; font-weight: 700; }
+
+.cat-card { border: 1px solid #e2e8f0; border-radius: 0.85rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+
+.cat-tabs .nav-link {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.cat-tabs .nav-link.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.cat-code-badge {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f5f3ff;
+  color: #6d28d9;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.cat-status { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.cat-status--active { color: #059669; }
+.cat-status--inactive { color: #64748b; }
+
+.cat-detail-drawer { border-left: 1px solid #e2e8f0; background: #fafafa; min-height: 420px; }
+
+.cat-icon-preview {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.65rem;
+  background: #f5f3ff;
+  color: #7c3aed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.cat-hierarchy-item {
+  border-left: 2px solid #ddd6fe;
+  padding-left: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .cat-stat-grid { grid-template-columns: 1fr; }
+}
