@@ -25,8 +25,17 @@ class MfaService
 
     public function requiresMfa(User $user): bool
     {
+        if (! $this->isEnabled()) {
+            return false;
+        }
+
         return $user->hasRole(self::MANDATORY_ROLES)
             || $user->status === 'mfa_enrolment_required';
+    }
+
+    public function isEnabled(): bool
+    {
+        return (bool) config('ntb.mfa_enabled', false);
     }
 
     public function isEnrolled(User $user): bool
@@ -40,6 +49,7 @@ class MfaService
         $methods = $user->mfaMethods()->orderByDesc('is_primary')->get();
 
         return [
+            'enabled' => $this->isEnabled(),
             'required' => $this->requiresMfa($user),
             'enrolled' => $this->isEnrolled($user),
             'methods' => $methods->map(fn (MfaMethod $m) => [

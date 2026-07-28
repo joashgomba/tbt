@@ -79,6 +79,11 @@ class AuthController extends Controller
 
         LoginAttempt::query()->where('identifier', $identifier)->latest()->limit(1)->update(['successful' => true]);
 
+        if (! $this->mfa->isEnabled() && $user->status === 'mfa_enrolment_required') {
+            $user->update(['status' => 'active']);
+            $user->refresh();
+        }
+
         if ($this->mfa->requiresMfa($user) && ! $this->mfa->isEnrolled($user)) {
             $user->update(['status' => 'mfa_enrolment_required']);
             $request->session()->put('mfa_verified', false);
@@ -163,11 +168,17 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user ? $this->userPayload($user, $mfaVerified, $enrollmentRequired) : null,
             'authenticated' => (bool) $user,
+            'mfa_enabled' => $this->mfa->isEnabled(),
         ]);
     }
 
     private function userPayload(User $user, bool $mfaVerified, bool $enrollmentRequired): array
     {
+        if (! $this->mfa->isEnabled()) {
+            $mfaVerified = true;
+            $enrollmentRequired = false;
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->displayName(),
@@ -179,7 +190,8 @@ class AuthController extends Controller
             'status' => $user->status,
             'mfa_enrolled' => $user->mfa_enrolled,
             'mfa_verified' => $mfaVerified,
-            'mfa_enrollment_required' => $enrollmentRequired || $user->status === 'mfa_enrolment_required',
+            'mfa_enrollment_required' => $this->mfa->isEnabled()
+                && ($enrollmentRequired || $user->status === 'mfa_enrolment_required'),
             'roles' => $user->getRoleNames()->values(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         ];
