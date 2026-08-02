@@ -32,13 +32,6 @@
           </RouterLink>
         </article>
       </div>
-
-      <div class="portal-categories-band__footer">
-        <RouterLink class="portal-btn portal-btn--secondary" :to="{ name: 'public-resources' }">
-          {{ t('categoriesViewAll') }}
-          <i class="ti ti-arrow-right ms-1" aria-hidden="true"></i>
-        </RouterLink>
-      </div>
     </div>
   </section>
 
@@ -135,7 +128,7 @@ const categoriesLoading = ref(true)
 
 const CATEGORY_META = {
   SPS: { icon: 'ti ti-plant-2', iconClass: 'portal-category-card__icon--sps', descKey: 'catSpsDesc' },
-  TBT: { icon: 'ti ti-ruler-measure', iconClass: 'portal-category-card__icon--tbt', descKey: 'catTbtDesc' },
+  TBT: { icon: 'ti ti-ruler-2', iconClass: 'portal-category-card__icon--tbt', descKey: 'catTbtDesc' },
   CUST: { icon: 'ti ti-building-warehouse', iconClass: 'portal-category-card__icon--cust', descKey: 'catCustDesc' },
   LIC: { icon: 'ti ti-file-certificate', iconClass: 'portal-category-card__icon--lic', descKey: 'catLicDesc' },
   TAX: { icon: 'ti ti-receipt-tax', iconClass: 'portal-category-card__icon--tax', descKey: 'catTaxDesc' },
@@ -166,7 +159,7 @@ const categoryCards = computed(() =>
       code: cat.code,
       name: localizedName(cat),
       description: dbDescription || (meta.descKey ? t(meta.descKey) : localizedName(cat)),
-      icon: cat.icon || meta.icon,
+      icon: meta.icon || cat.icon,
       iconClass: meta.iconClass,
     }
   }),

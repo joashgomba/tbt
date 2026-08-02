@@ -84,9 +84,8 @@ import { useI18n } from '@/composables/useI18n'
 const { t, locale } = useI18n()
 
 const slides = [
-  { src: '/assets/img/slides/slide1.png' },
-  { src: '/assets/img/slides/slide2.png' },
   { src: '/assets/img/slides/slide3.png' },
+  { src: '/assets/img/slides/slide4.png' },
 ]
 
 const current = ref(0)

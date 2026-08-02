@@ -157,7 +157,7 @@ class NtbMasterDataSeeder extends Seeder
             ['SPS', 'Sanitary and Phytosanitary Measures', 'Mesures sanitaires et phytosanitaires', 4, $sps?->id, 'ti ti-plant-2', 10,
                 'Inspections, certifications, and quarantine measures for food, plants, and animal products at border posts.',
                 'Inspections, certifications et mesures de quarantaine pour les produits alimentaires, végétaux et animaux.'],
-            ['TBT', 'Technical Barriers to Trade', 'Obstacles techniques au commerce', 4, $mtt?->id, 'ti ti-ruler-measure', 20,
+            ['TBT', 'Technical Barriers to Trade', 'Obstacles techniques au commerce', 4, $mtt?->id, 'ti ti-ruler-2', 20,
                 'Standards, testing, labelling, and conformity assessment requirements affecting traded goods.',
                 'Normes, essais, étiquetage et exigences d\'évaluation de la conformité affectant les marchandises échangées.'],
             ['CUST', 'Customs and Administrative Procedures', 'Procédures douanières et administratives', 2, $customs?->id, 'ti ti-building-warehouse', 30,

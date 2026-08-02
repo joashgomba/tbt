@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
 class CategoryManagementController extends Controller
 {
     private const ICONS = [
-        'ti ti-plant-2', 'ti ti-ruler-measure', 'ti ti-building-warehouse',
+        'ti ti-plant-2', 'ti ti-ruler-2', 'ti ti-building-warehouse',
         'ti ti-file-certificate', 'ti ti-receipt-tax', 'ti ti-truck',
         'ti ti-alert-circle', 'ti ti-scale', 'ti ti-shield-check', 'ti ti-package',
     ];

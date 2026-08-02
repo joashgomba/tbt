@@ -16,6 +16,14 @@
           <i class="ti ti-building-bank" aria-hidden="true"></i>
           {{ t('officialPlatform') }}
         </span>
+        <a class="portal-trust-item portal-trust-item--link" href="tel:+25321300000">
+          <i class="ti ti-phone" aria-hidden="true"></i>
+          <span>{{ t('trustHotline') }}: {{ publicContact.hotlineDisplay }}</span>
+        </a>
+        <a class="portal-trust-item portal-trust-item--link" href="mailto:focal@ntb.dj">
+          <i class="ti ti-mail" aria-hidden="true"></i>
+          <span>{{ t('trustEmail') }}: {{ publicContact.email }}</span>
+        </a>
       </div>
     </div>
 
@@ -168,6 +176,11 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from '@/composables/useI18n'
+
+const publicContact = {
+  hotlineDisplay: '+253 21 30 00 00',
+  email: 'focal@ntb.dj',
+}
 
 const route = useRoute()
 const { locale, setLocale, t } = useI18n()
