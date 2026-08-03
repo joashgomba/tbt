@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\ComplaintStatusCode;
+use App\Models\ActivitySector;
 use App\Models\Complaint;
 use App\Models\ComplaintStatus;
 use App\Models\Corridor;
@@ -27,12 +28,14 @@ class NtbComplaintsSeeder extends Seeder
         $customs = Institution::query()->where('institution_name', 'Djibouti Customs Authority')->first();
         $sps = Institution::query()->where('institution_name', 'National SPS Authority')->first();
         $focal = User::query()->where('email', 'focal@ntb.dj')->first();
+        $sectorIds = ActivitySector::query()->pluck('id', 'code');
 
         $samples = [
             [
                 'title' => 'Repeated customs document requests at Galafi',
                 'description' => 'Exporter reports three separate requests for the same transit declaration over 48 hours, causing perishable coffee beans to spoil.',
                 'category' => 'CUST',
+                'sector' => 'AGR',
                 'location' => $galafi,
                 'status' => ComplaintStatusCode::InProcessing,
                 'institution' => $customs,
@@ -44,6 +47,7 @@ class NtbComplaintsSeeder extends Seeder
                 'title' => 'Unclear SPS inspection criteria for plant products',
                 'description' => 'Importer unable to obtain written criteria for plant product inspection, leading to unpredictable clearance times at the port.',
                 'category' => 'SPS',
+                'sector' => 'AGR',
                 'location' => $port,
                 'status' => ComplaintStatusCode::Assigned,
                 'institution' => $sps,
@@ -55,6 +59,7 @@ class NtbComplaintsSeeder extends Seeder
                 'title' => 'Export licence delay beyond published SLA',
                 'description' => 'Licence application pending 12 business days against a published 5-day SLA for agricultural exports.',
                 'category' => 'LIC',
+                'sector' => 'AGR',
                 'location' => $port,
                 'status' => ComplaintStatusCode::UnderValidation,
                 'institution' => null,
@@ -65,6 +70,7 @@ class NtbComplaintsSeeder extends Seeder
                 'title' => 'Discriminatory handling fee at border checkpoint',
                 'description' => 'SMS report: truckers charged an undeclared handling fee not listed in official tariff schedule.',
                 'category' => 'TAX',
+                'sector' => 'LOG',
                 'location' => $galafi,
                 'status' => ComplaintStatusCode::Submitted,
                 'institution' => null,
@@ -76,6 +82,7 @@ class NtbComplaintsSeeder extends Seeder
                 'title' => 'Transit permit duplication resolved',
                 'description' => 'Duplicate permit requirement removed after institutional coordination; case closed with corrective action.',
                 'category' => 'TRN',
+                'sector' => 'LOG',
                 'location' => $galafi,
                 'status' => ComplaintStatusCode::Closed,
                 'institution' => $customs,
@@ -87,6 +94,7 @@ class NtbComplaintsSeeder extends Seeder
                 'title' => 'Labelling standard dispute — archived reference case',
                 'description' => 'Historical TBT case on bilingual labelling requirements, archived after legal retention review.',
                 'category' => 'TBT',
+                'sector' => 'MFG',
                 'location' => $port,
                 'status' => ComplaintStatusCode::Archived,
                 'institution' => Institution::query()->where('institution_name', 'Ministry of Trade and Tourism')->first(),
@@ -96,7 +104,7 @@ class NtbComplaintsSeeder extends Seeder
             ],
         ];
 
-        DB::transaction(function () use ($samples, $workflow, $corridor, $focal) {
+        DB::transaction(function () use ($samples, $workflow, $corridor, $focal, $sectorIds) {
             foreach ($samples as $sample) {
                 if (Complaint::query()->where('title', $sample['title'])->exists()) {
                     continue;
@@ -108,6 +116,7 @@ class NtbComplaintsSeeder extends Seeder
                     'title' => $sample['title'],
                     'description' => $sample['description'],
                     'ntb_category_id' => $category->id,
+                    'activity_sector_id' => $sectorIds[$sample['sector'] ?? 'SVC'] ?? null,
                     'country_origin' => 'Ethiopia',
                     'country_destination' => 'Djibouti',
                     'corridor_id' => $corridor->id,

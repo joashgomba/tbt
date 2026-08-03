@@ -13,6 +13,7 @@ class Complaint extends Model
         'title',
         'description',
         'ntb_category_id',
+        'activity_sector_id',
         'status_id',
         'priority',
         'country_origin',
@@ -48,6 +49,11 @@ class Complaint extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(NtbCategory::class, 'ntb_category_id');
+    }
+
+    public function activitySector(): BelongsTo
+    {
+        return $this->belongsTo(ActivitySector::class);
     }
 
     public function status(): BelongsTo

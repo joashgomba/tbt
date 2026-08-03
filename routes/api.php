@@ -39,6 +39,7 @@ Route::prefix('public')->group(function () {
     Route::post('/complaints', [PublicComplaintController::class, 'store']);
     Route::get('/complaints/{code}', [PublicComplaintController::class, 'show']);
     Route::post('/sms/complaints', [SmsComplaintController::class, 'store']);
+    Route::get('/transparency/lookups', [PublicTransparencyController::class, 'lookups']);
     Route::get('/transparency/stats', [PublicTransparencyController::class, 'stats']);
     Route::get('/transparency/reports', [PublicTransparencyController::class, 'reports']);
     Route::get('/transparency/map', [PublicTransparencyController::class, 'mapPoints']);

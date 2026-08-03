@@ -39,7 +39,7 @@ class PublicComplaintController extends Controller
             'reporter_phone' => ['nullable', 'string', 'max:30'],
             'gender' => ['nullable', 'in:M,F,NB,NA'],
             'notify_reporter' => ['nullable', 'boolean'],
-            'attachments' => ['nullable', 'array'],
+            'attachments' => ['nullable', 'array', 'max:5'],
             'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:'.$maxKb],
         ]);
 
@@ -120,6 +120,7 @@ class PublicComplaintController extends Controller
             'locations' => Location::query()->where('is_active', true)->orderBy('sort_order')->orderBy('location_name')->get(['id', 'location_code', 'location_name', 'name_en', 'name_fr', 'description_en', 'description_fr', 'corridor_id', 'border_post', 'location_type', 'country', 'latitude', 'longitude']),
             'settings' => [
                 'max_attachment_size_kb' => $this->settings->maxUploadKb(),
+                'max_attachments' => 5,
                 'allowed_mimes' => ['pdf', 'jpg', 'jpeg', 'png', 'docx'],
             ],
         ]);

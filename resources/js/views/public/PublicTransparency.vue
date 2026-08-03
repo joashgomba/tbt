@@ -8,9 +8,16 @@
 
       <div v-if="statsLoading" class="portal-empty">{{ t('loading') }}</div>
       <div v-else class="portal-stats-grid mb-4" role="list">
-        <div v-for="item in statCards" :key="item.label" class="portal-stat-card" role="listitem">
+        <div v-for="item in statCards" :key="item.key" class="portal-stat-card" role="listitem">
           <div class="portal-stat-card__value">{{ item.value }}</div>
-          <div class="portal-stat-card__label">{{ item.label }}</div>
+          <div class="portal-stat-card__label">
+            {{ item.label }}
+            <span class="portal-stat-card__tooltip" tabindex="0" :aria-label="item.tooltip">
+              <i class="ti ti-info-circle" aria-hidden="true"></i>
+              <span class="portal-stat-card__tooltip-text" role="tooltip">{{ item.tooltip }}</span>
+            </span>
+          </div>
+          <p v-if="filtersActive" class="portal-stat-card__filtered">{{ t('statsFilteredHint') }}</p>
         </div>
       </div>
     </section>
@@ -42,27 +49,39 @@
       </div>
 
       <div class="portal-filters" role="search">
-        <select v-model="filters.status_group" :aria-label="t('filterStatus')" @change="loadReports">
+        <select v-model="filters.status_group" :aria-label="t('filterStatus')" @change="applyFilters">
           <option value="">{{ t('allStatuses') }}</option>
           <option value="received">{{ t('statusReceived') }}</option>
           <option value="under_review">{{ t('statusUnderReview') }}</option>
           <option value="resolved">{{ t('statusResolved') }}</option>
           <option value="closed">{{ t('statusClosed') }}</option>
         </select>
-        <select v-model="filters.category_id" :aria-label="t('filterCategory')" @change="loadReports">
+        <select v-model="filters.category_id" :aria-label="t('filterCategory')" @change="applyFilters">
           <option value="">{{ t('allCategories') }}</option>
-          <option v-for="c in lookups.categories" :key="c.id" :value="c.id">{{ localizedName(c) }}</option>
+          <option v-for="c in lookups.categories" :key="c.id" :value="String(c.id)">{{ localizedName(c) }}</option>
         </select>
-        <select v-model="filters.country" :aria-label="t('filterCountry')" @change="loadReports">
+        <select v-model="filters.country" :aria-label="t('filterCountry')" @change="applyFilters">
           <option value="">{{ t('allCountries') }}</option>
           <option v-for="c in countries" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <select v-model="filters.year" :aria-label="t('filterYear')" @change="applyFilters">
+          <option value="">{{ t('allYears') }}</option>
+          <option v-for="y in lookups.years" :key="y" :value="String(y)">{{ y }}</option>
+        </select>
+        <select v-model="filters.institution_id" :aria-label="t('filterInstitution')" @change="applyFilters">
+          <option value="">{{ t('allInstitutions') }}</option>
+          <option v-for="inst in lookups.institutions" :key="inst.id" :value="String(inst.id)">{{ localizedName(inst) }}</option>
+        </select>
+        <select v-model="filters.activity_sector_id" :aria-label="t('filterSector')" @change="applyFilters">
+          <option value="">{{ t('allSectors') }}</option>
+          <option v-for="sector in lookups.activity_sectors" :key="sector.id" :value="String(sector.id)">{{ localizedName(sector) }}</option>
         </select>
         <input
           v-model="filters.search"
           type="search"
           :placeholder="t('searchReports')"
           :aria-label="t('searchReports')"
-          @input="debouncedLoad"
+          @input="debouncedApply"
         />
       </div>
 
@@ -127,24 +146,54 @@ const mapPoints = ref([])
 const reportsLoading = ref(true)
 const viewMode = ref('list')
 const trackCode = ref('')
-const lookups = reactive({ categories: [] })
+const lookups = reactive({
+  categories: [],
+  years: [],
+  institutions: [],
+  activity_sectors: [],
+})
 const filters = reactive({
   status_group: '',
   category_id: '',
   country: '',
+  year: '',
+  institution_id: '',
+  activity_sector_id: '',
   search: '',
 })
 
 const countries = ['Ethiopia', 'Djibouti']
 
+const filtersActive = computed(() => stats.value?.filters_applied === true)
+
 const statCards = computed(() => {
   const s = stats.value?.summary
   if (!s) return []
   return [
-    { value: s.total_received ?? 0, label: t('statTotalReceived') },
-    { value: stats.value?.by_status_group?.resolved ?? 0, label: t('statResolved') },
-    { value: s.resolution_rate != null ? `${s.resolution_rate}%` : '—', label: t('statResolutionRate') },
-    { value: s.avg_resolution_days != null ? `${s.avg_resolution_days}d` : '—', label: t('statAvgResolution') },
+    {
+      key: 'total',
+      value: s.total_received ?? 0,
+      label: t('statTotalReceived'),
+      tooltip: t('statTotalReceivedHelp'),
+    },
+    {
+      key: 'resolved',
+      value: stats.value?.by_status_group?.resolved ?? 0,
+      label: t('statResolved'),
+      tooltip: t('statResolvedHelp'),
+    },
+    {
+      key: 'rate',
+      value: s.resolution_rate != null ? `${s.resolution_rate}%` : '—',
+      label: t('statResolutionRate'),
+      tooltip: t('statResolutionRateHelp'),
+    },
+    {
+      key: 'avg',
+      value: s.avg_resolution_days != null ? `${s.avg_resolution_days}d` : '—',
+      label: t('statAvgResolution'),
+      tooltip: t('statAvgResolutionHelp'),
+    },
   ]
 })
 
@@ -155,41 +204,63 @@ onMounted(async () => {
     filters.category_id = String(route.query.category_id)
   }
 
-  const [statsRes, lookupsRes, mapRes] = await Promise.all([
-    http.get('/public/transparency/stats'),
+  const [lookupsRes, transparencyLookupsRes] = await Promise.all([
     http.get('/public/lookups'),
-    http.get('/public/transparency/map'),
+    http.get('/public/transparency/lookups'),
   ])
-  stats.value = statsRes.data
-  Object.assign(lookups, lookupsRes.data)
-  mapPoints.value = mapRes.data.points || []
-  statsLoading.value = false
-  await loadReports()
+
+  lookups.categories = lookupsRes.data.categories || []
+  lookups.years = transparencyLookupsRes.data.years || []
+  lookups.institutions = transparencyLookupsRes.data.institutions || []
+  lookups.activity_sectors = transparencyLookupsRes.data.activity_sectors || []
+
+  await refreshDashboard()
 })
 
 watch(() => route.query.category_id, (id) => {
   filters.category_id = id ? String(id) : ''
-  loadReports()
+  applyFilters()
 })
 
-async function loadReports() {
+function filterParams() {
+  const params = {}
+  if (filters.status_group) params.status_group = filters.status_group
+  if (filters.category_id) params.category_id = filters.category_id
+  if (filters.country) params.country = filters.country
+  if (filters.year) params.year = filters.year
+  if (filters.institution_id) params.institution_id = filters.institution_id
+  if (filters.activity_sector_id) params.activity_sector_id = filters.activity_sector_id
+  if (filters.search.trim()) params.search = filters.search.trim()
+  return params
+}
+
+async function refreshDashboard() {
+  const params = filterParams()
+  statsLoading.value = true
   reportsLoading.value = true
+
   try {
-    const params = {}
-    if (filters.status_group) params.status_group = filters.status_group
-    if (filters.category_id) params.category_id = filters.category_id
-    if (filters.country) params.country = filters.country
-    if (filters.search.trim()) params.search = filters.search.trim()
-    const { data } = await http.get('/public/transparency/reports', { params })
-    reports.value = data.reports || []
+    const [statsRes, reportsRes, mapRes] = await Promise.all([
+      http.get('/public/transparency/stats', { params }),
+      http.get('/public/transparency/reports', { params }),
+      http.get('/public/transparency/map', { params }),
+    ])
+    stats.value = statsRes.data
+    reports.value = reportsRes.data.reports || []
+    mapPoints.value = mapRes.data.points || []
   } finally {
+    statsLoading.value = false
     reportsLoading.value = false
   }
 }
 
-function debouncedLoad() {
+function applyFilters() {
+  refreshDashboard()
+}
+
+function debouncedApply() {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(loadReports, 350)
+  debounceTimer = setTimeout(applyFilters, 350)
 }
 
 function goTrack() {

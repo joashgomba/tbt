@@ -80,12 +80,19 @@
               <p v-if="errors.corridor_id" id="corridor-error" class="portal-field__error">{{ errors.corridor_id }}</p>
             </div>
             <div class="portal-field">
-              <label for="location">{{ t('location') }}</label>
+              <label for="location">{{ t('location') }} <span class="required" aria-hidden="true">*</span></label>
               <p id="loc-hint" class="portal-field__hint">{{ t('locationHint') }}</p>
-              <select id="location" v-model="form.location_id" required aria-describedby="loc-hint">
+              <select
+                id="location"
+                v-model="form.location_id"
+                :aria-invalid="!!errors.location_id"
+                aria-describedby="loc-hint loc-error"
+              >
                 <option value="">{{ t('selectOption') }}</option>
                 <option v-for="l in filteredLocations" :key="l.id" :value="l.id">{{ localizedName(l) }}</option>
               </select>
+              <p v-if="errors.location_id" id="loc-error" class="portal-field__error">{{ errors.location_id }}</p>
+              <p v-else-if="form.corridor_id && !filteredLocations.length" class="portal-field__error">{{ t('locationNoneForCorridor') }}</p>
             </div>
             <div class="portal-field">
               <label for="origin">{{ t('originCountry') }} <span class="required" aria-hidden="true">*</span></label>
@@ -158,17 +165,26 @@
             <p class="portal-field__hint mb-2"><em>{{ t('attachmentsOptional') }}</em></p>
             <input
               id="attachments"
+              ref="fileInput"
               type="file"
               class="form-control"
               multiple
               accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              aria-describedby="attach-hint"
+              :aria-describedby="attachDescribedBy"
+              :disabled="files.length >= MAX_ATTACHMENTS"
               @change="onFiles"
             />
+            <p v-if="errors.attachments" id="attach-error" class="portal-field__error">{{ errors.attachments }}</p>
+            <p v-if="files.length" class="portal-field__hint mt-2">{{ attachmentsCountLabel }}</p>
             <ul v-if="files.length" class="portal-file-list" aria-live="polite">
-              <li v-for="f in files" :key="f.name">
-                <i class="ti ti-paperclip" aria-hidden="true"></i>
-                {{ f.name }} ({{ formatSize(f.size) }})
+              <li v-for="(f, index) in files" :key="`${f.name}-${f.size}-${index}`">
+                <span>
+                  <i class="ti ti-paperclip" aria-hidden="true"></i>
+                  {{ f.name }} ({{ formatSize(f.size) }})
+                </span>
+                <button type="button" class="portal-file-list__remove" :aria-label="formatMessage('removeAttachment', { name: f.name })" @click="removeFile(index)">
+                  <i class="ti ti-x" aria-hidden="true"></i>
+                </button>
               </li>
             </ul>
           </div>
@@ -220,7 +236,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { http } from '@/api/http'
 import { useI18n } from '@/composables/useI18n'
@@ -229,11 +245,14 @@ import PublicStepIndicator from '@/components/public/PublicStepIndicator.vue'
 const router = useRouter()
 const { t, localizedName } = useI18n()
 
+const MAX_ATTACHMENTS = 5
+
 const step = ref(1)
 const loading = ref(false)
 const stepError = ref('')
 const submitError = ref('')
 const files = ref([])
+const fileInput = ref(null)
 const errors = reactive({})
 const lookups = reactive({ categories: [], corridors: [], locations: [] })
 
@@ -262,6 +281,32 @@ const filteredLocations = computed(() =>
   lookups.locations.filter((l) => !form.corridor_id || l.corridor_id == form.corridor_id),
 )
 
+const attachDescribedBy = computed(() => {
+  const ids = ['attach-hint']
+  if (errors.attachments) ids.push('attach-error')
+  return ids.join(' ')
+})
+
+const attachmentsCountLabel = computed(() =>
+  t('attachmentsCount')
+    .replace('{count}', String(files.value.length))
+    .replace('{max}', String(MAX_ATTACHMENTS)),
+)
+
+function formatMessage(key, params = {}) {
+  let message = t(key)
+  Object.entries(params).forEach(([param, value]) => {
+    message = message.replace(`{${param}}`, String(value))
+  })
+  return message
+}
+
+watch(() => form.corridor_id, () => {
+  if (form.location_id && !filteredLocations.value.some((l) => String(l.id) === String(form.location_id))) {
+    form.location_id = ''
+  }
+})
+
 onMounted(async () => {
   const { data } = await http.get('/public/lookups')
   Object.assign(lookups, data)
@@ -284,9 +329,19 @@ function validateStep(current) {
 
   if (current === 2) {
     if (!form.corridor_id) { errors.corridor_id = t('fieldRequired'); valid = false }
-    if (!form.location_id) { errors.location_id = t('fieldRequired'); valid = false }
+    if (!form.location_id) {
+      errors.location_id = filteredLocations.value.length
+        ? t('fieldRequired')
+        : t('locationNoneForCorridor')
+      valid = false
+    }
     if (!form.country_origin.trim()) { errors.country_origin = t('fieldRequired'); valid = false }
     if (!form.country_destination.trim()) { errors.country_destination = t('fieldRequired'); valid = false }
+  }
+
+  if (current === 4 && files.value.length > MAX_ATTACHMENTS) {
+    errors.attachments = formatMessage('attachmentsMaxError', { max: MAX_ATTACHMENTS })
+    valid = false
   }
 
   if (!valid) stepError.value = t('stepValidationError')
@@ -303,7 +358,26 @@ function goBack() {
 }
 
 function onFiles(e) {
-  files.value = Array.from(e.target.files || [])
+  const picked = Array.from(e.target.files || [])
+  if (!picked.length) return
+
+  const merged = [...files.value, ...picked]
+  if (merged.length > MAX_ATTACHMENTS) {
+    errors.attachments = formatMessage('attachmentsMaxError', { max: MAX_ATTACHMENTS })
+    files.value = merged.slice(0, MAX_ATTACHMENTS)
+  } else {
+    delete errors.attachments
+    files.value = merged
+  }
+
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+function removeFile(index) {
+  files.value.splice(index, 1)
+  if (files.value.length <= MAX_ATTACHMENTS) {
+    delete errors.attachments
+  }
 }
 
 function formatSize(bytes) {
@@ -313,6 +387,14 @@ function formatSize(bytes) {
 }
 
 async function onSubmit() {
+  if (!validateStep(1)) {
+    step.value = 1
+    return
+  }
+  if (!validateStep(2)) {
+    step.value = 2
+    return
+  }
   if (!validateStep(4)) return
 
   loading.value = true

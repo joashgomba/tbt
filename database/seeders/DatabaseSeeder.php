@@ -11,6 +11,7 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             NtbRolesAndPermissionsSeeder::class,
             NtbMasterDataSeeder::class,
+            NtbActivitySectorSeeder::class,
             NtbWorkflowSeeder::class,
             NtbDemoUsersSeeder::class,
             NtbComplaintsSeeder::class,
