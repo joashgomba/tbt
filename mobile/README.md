@@ -19,13 +19,14 @@ Reporter-facing mobile client for the Djibouti NTB Portal (register, report trad
 4. [Environment configuration](#environment-configuration)
 5. [Run locally on Windows (Android)](#run-locally-on-windows-android)
 6. [Run locally on macOS (Android + iOS)](#run-locally-on-macos-android--ios)
-7. [Physical devices & networking](#physical-devices--networking)
-8. [Install & test builds (APK / iOS app)](#install--test-builds-apk--ios-app)
-9. [Deploy to Google Play Store](#deploy-to-google-play-store)
-10. [Deploy to Apple App Store](#deploy-to-apple-app-store)
-11. [Push notifications (optional)](#push-notifications-optional)
-12. [Features](#features)
-13. [Troubleshooting](#troubleshooting)
+7. [Local deployment with scrcpy (Windows & macOS)](#local-deployment-with-scrcpy-windows--macos)
+8. [Physical devices & networking](#physical-devices--networking)
+9. [Install & test builds (APK / iOS app)](#install--test-builds-apk--ios-app)
+10. [Deploy to Google Play Store](#deploy-to-google-play-store)
+11. [Deploy to Apple App Store](#deploy-to-apple-app-store)
+12. [Push notifications (optional)](#push-notifications-optional)
+13. [Features](#features)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -53,6 +54,7 @@ Fix anything `flutter doctor` marks as missing before continuing.
 | **Android Studio** | Android SDK, emulator, SDK Platform-Tools (`adb`) |
 | **Visual Studio Build Tools** (with “Desktop development with C++”) | Often required by Flutter on Windows |
 | **PHP 8.x + Composer** | Run Laravel (`php artisan serve`) on the same PC |
+| **[scrcpy](https://github.com/Genymobile/scrcpy)** (optional) | Mirror a USB-connected Android phone on your desktop while testing |
 
 You **cannot** build or run the iOS app on Windows (requires macOS + Xcode).
 
@@ -63,6 +65,7 @@ You **cannot** build or run the iOS app on Windows (requires macOS + Xcode).
 | **Xcode** (from App Store) | iOS Simulator, device builds, App Store archives |
 | **CocoaPods** | `sudo gem install cocoapods` — iOS dependencies |
 | **Android Studio** (optional) | Android emulator; or use a physical Android device |
+| **[scrcpy](https://github.com/Genymobile/scrcpy)** (optional) | Mirror a USB-connected Android phone on your Mac while testing |
 
 After installing Xcode:
 
@@ -189,7 +192,7 @@ flutter run --dart-define=APP_ENV=local ^
   --dart-define=API_BASE_URL=http://192.168.1.50:8000/api/v1
 ```
 
-**Alternative (USB port forwarding, no Wi‑Fi API URL):**
+**Alternative (USB port forwarding, no Wi‑Fi API URL):** works well with **scrcpy** — see [Local deployment with scrcpy](#local-deployment-with-scrcpy-windows--macos).
 
 ```powershell
 adb reverse tcp:8000 tcp:8000
@@ -235,6 +238,19 @@ flutter run --dart-define=APP_ENV=local
 
 Uses `http://127.0.0.1:8000/api/v1`.
 
+### Physical Android phone (USB + scrcpy)
+
+Same as Windows: enable USB debugging, then use **`adb reverse`** + **`flutter run`** with `127.0.0.1`, or your Mac’s LAN IP over Wi‑Fi. Mirror the device with **scrcpy** — [full walkthrough below](#local-deployment-with-scrcpy-windows--macos).
+
+```bash
+adb reverse tcp:8000 tcp:8000
+cd mobile/ntb_mobile
+flutter run --dart-define=APP_ENV=local \
+  --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+In another terminal: `scrcpy`
+
 ### Physical iPhone (same Wi‑Fi)
 
 ```bash
@@ -244,6 +260,128 @@ flutter run --dart-define=APP_ENV=local \
 ```
 
 First-time device run: open **`ios/Runner.xcworkspace`** in Xcode → select your Team under **Signing & Capabilities** → trust the developer certificate on the iPhone (**Settings → General → VPN & Device Management**).
+
+> **Note:** scrcpy is **Android-only**. For iPhone screen mirroring during local dev, use Xcode’s **Devices and Simulators** window or QuickTime (New Movie Recording → select iPhone).
+
+---
+
+## Local deployment with scrcpy (Windows & macOS)
+
+[scrcpy](https://github.com/Genymobile/scrcpy) shows your **physical Android** screen on the computer over USB (low latency, no account required). Use it together with **`flutter run`** to develop against a real device while watching the UI on your monitor. **`adb`** (Android platform-tools) is required; scrcpy uses the same connection.
+
+### Install scrcpy and adb
+
+| Platform | scrcpy | adb |
+|----------|--------|-----|
+| **Windows** | [Releases](https://github.com/Genymobile/scrcpy/releases) (zip) or `choco install scrcpy` / `scoop install scrcpy` | Android Studio → SDK → **SDK Platform-Tools**, or `choco install adb` |
+| **macOS** | `brew install scrcpy` | `brew install --cask android-platform-tools` or via Android Studio |
+
+Confirm tools are on your PATH:
+
+```bash
+adb version
+scrcpy --version
+```
+
+### Prepare the phone (once)
+
+1. **Settings → About phone** → tap **Build number** 7 times → enable **Developer options**.
+2. **Developer options** → enable **USB debugging**.
+3. Connect USB; accept **Allow USB debugging** on the phone.
+4. Verify the device is visible:
+
+```bash
+adb devices
+# List of devices attached
+# R58N....    device
+```
+
+If status is `unauthorized`, unplug, revoke USB debugging authorizations on the phone, and reconnect.
+
+**Windows:** install the OEM/Google [USB driver](https://developer.android.com/studio/run/win-usb) if the device does not appear.
+
+### Recommended local workflow (USB + API on localhost)
+
+Use three terminals on **Windows (PowerShell)** or **macOS**:
+
+**Terminal 1 — Laravel API**
+
+```bash
+cd /path/to/tbt
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+**Terminal 2 — forward port 8000 to the phone (once per USB session)**
+
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+This lets the app on the phone call `http://127.0.0.1:8000` and reach your computer’s Laravel instance.
+
+**Terminal 3 — Flutter + mirror**
+
+```bash
+cd mobile/ntb_mobile
+flutter devices          # pick your phone ID if multiple
+flutter run --dart-define=APP_ENV=local \
+  --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+**Terminal 4 (optional) — scrcpy**
+
+```bash
+scrcpy
+```
+
+Useful scrcpy flags:
+
+```bash
+scrcpy --stay-awake          # keep phone awake while plugged in
+scrcpy -m 1024               # limit width (lighter on laptop GPUs)
+scrcpy --window-title "NTB"  # label the window
+```
+
+Control the phone from the desktop: click = tap, type with focus on scrcpy window. **Do not** rely on scrcpy for Flutter hotkeys — use the terminal where **`flutter run`** is running (`r` / `R`).
+
+### Alternative: Wi‑Fi API (no `adb reverse`)
+
+Phone and PC on the **same Wi‑Fi**; use your computer’s LAN IP (not `10.0.2.2`):
+
+- **Windows:** `ipconfig` → IPv4 (e.g. `192.168.1.50`)
+- **macOS:** `ipconfig getifaddr en0`
+
+```bash
+flutter run --dart-define=APP_ENV=local \
+  --dart-define=API_BASE_URL=http://192.168.1.50:8000/api/v1
+```
+
+You can still run **`scrcpy`** over USB for mirroring while the app uses Wi‑Fi for HTTP.
+
+### Deploy a debug build, then test with scrcpy
+
+Build/install without keeping `flutter run` attached:
+
+```bash
+cd mobile/ntb_mobile
+flutter build apk --debug \
+  --dart-define=APP_ENV=local \
+  --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+adb reverse tcp:8000 tcp:8000
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+scrcpy
+```
+
+Launch **NTB Djibouti** on the phone from the app drawer. Re-run **`adb reverse`** after each USB reconnect.
+
+### scrcpy troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `adb devices` empty | Different cable (data-capable), driver (Windows), re-authorize debugging |
+| scrcpy starts then closes | Update scrcpy/adb; try `scrcpy -V verbose` |
+| Login timeout in app | Missing **`adb reverse`** while using `127.0.0.1`, or wrong **`API_BASE_URL`** — see [Physical devices & networking](#physical-devices--networking) |
+| `flutter run` doesn’t see phone | Same `adb devices` list; restart adb: `adb kill-server && adb start-server` |
 
 ---
 

@@ -13,6 +13,8 @@ flutter pub get
 flutter run --dart-define=APP_ENV=local
 ```
 
+Physical Android over USB (mirror with scrcpy): see **[Local deployment with scrcpy](../README.md#local-deployment-with-scrcpy-windows--macos)** in the main mobile README.
+
 Production build example:
 
 ```bash
