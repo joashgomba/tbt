@@ -1,16 +1,22 @@
-# ntb_mobile
+# NTB Djibouti (`ntb_mobile`)
 
-A new Flutter project.
+Flutter application package for the Djibouti NTB reporter mobile client.
 
-## Getting Started
+**Full documentation** (Windows & macOS local setup, APK / App Store deployment, networking, troubleshooting):
 
-This project is a starting point for a Flutter application.
+→ **[`../README.md`](../README.md)**
 
-A few resources to get you started if this is your first Flutter project:
+Quick start (API already running on port 8000):
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter pub get
+flutter run --dart-define=APP_ENV=local
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Production build example:
+
+```bash
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=API_BASE_URL=https://YOUR_HOST/api/v1
+```
