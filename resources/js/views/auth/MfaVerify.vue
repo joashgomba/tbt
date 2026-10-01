@@ -40,7 +40,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http } from '@/api/http'
-import { fetchAuthSession } from '@/auth/session'
+import { fetchAuthSession, resolveAfterAdminLogin } from '@/auth/session'
 import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
@@ -64,14 +64,19 @@ async function submit() {
   loading.value = true
   error.value = ''
   try {
+    const authContext = sessionStorage.getItem('mfa_auth_context') || 'admin'
     await http.post('/auth/mfa/verify', {
       challenge_id: Number(challengeId.value),
       code: code.value,
+    }, {
+      headers: { 'X-Auth-Context': authContext },
     })
     sessionStorage.removeItem('mfa_challenge_id')
     sessionStorage.removeItem('mfa_channel')
-    await fetchAuthSession()
-    router.push(typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'admin-dashboard' })
+    sessionStorage.removeItem('mfa_auth_context')
+    const user = await fetchAuthSession()
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+    router.push(resolveAfterAdminLogin(user, redirect))
   } catch (e) {
     error.value = e?.response?.data?.message || t('mfaInvalidCode')
   } finally {

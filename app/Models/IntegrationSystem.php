@@ -8,6 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IntegrationSystem extends Model
 {
+    /** @var list<string> */
+    protected $hidden = [
+        'auth_config',
+    ];
+
     protected $fillable = [
         'system_code', 'name', 'name_en', 'name_fr', 'system_type', 'direction',
         'country', 'institution_id', 'base_url', 'auth_method', 'auth_config',
@@ -18,6 +23,7 @@ class IntegrationSystem extends Model
     protected function casts(): array
     {
         return [
+            'auth_config' => 'encrypted:array',
             'metadata' => 'array',
             'is_active' => 'boolean',
             'last_sync_at' => 'datetime',

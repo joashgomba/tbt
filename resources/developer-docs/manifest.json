@@ -1,0 +1,29 @@
+{
+  "documents": [
+    {
+      "slug": "overview",
+      "title": "API overview",
+      "summary": "Channels, base URLs, authentication models, and shared complaint payload."
+    },
+    {
+      "slug": "mobile-api",
+      "title": "Mobile app API",
+      "summary": "Bearer token auth, registration, lookups, and complaint submission from native apps."
+    },
+    {
+      "slug": "ussd-api",
+      "title": "USSD gateway API",
+      "summary": "Session callback, menu flow, audit trail, and telco integration notes."
+    },
+    {
+      "slug": "sms-webhook",
+      "title": "SMS webhook",
+      "summary": "Structured SMS ingestion for aggregators and short-code services."
+    },
+    {
+      "slug": "web-portal-api",
+      "title": "Web portal API",
+      "summary": "Cookie session auth for the public reporting wizard."
+    }
+  ]
+}

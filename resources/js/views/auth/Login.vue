@@ -58,13 +58,13 @@
 
           <form @submit.prevent="submit" novalidate>
             <div class="admin-login__field">
-              <label for="login-email">{{ t('email') }}</label>
+              <label for="login-email">{{ t('emailOrUsername') }}</label>
               <div class="admin-login__input-wrap">
                 <i class="ti ti-mail input-icon" aria-hidden="true"></i>
                 <input
                   id="login-email"
                   v-model="form.email"
-                  type="email"
+                  type="text"
                   autocomplete="username"
                   required
                   autofocus
@@ -130,7 +130,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login } from '@/auth/session'
+import { login, resolveAfterAdminLogin } from '@/auth/session'
 import { useI18n } from '@/composables/useI18n'
 
 const router = useRouter()
@@ -159,7 +159,7 @@ async function submit() {
   loading.value = true
   error.value = ''
   try {
-    const result = await login(form)
+    const result = await login(form, { context: 'admin' })
     if (result?.mfaRequired) {
       router.push({ name: 'admin-mfa-verify', query: { redirect: typeof route.query.redirect === 'string' ? route.query.redirect : '/admin' } })
       return
@@ -168,7 +168,8 @@ async function submit() {
       router.push({ name: 'admin-security' })
       return
     }
-    router.push(typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'admin-dashboard' })
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+    router.push(resolveAfterAdminLogin(result, redirect))
   } catch (e) {
     error.value = e?.response?.data?.message
       || e?.response?.data?.errors?.email?.[0]

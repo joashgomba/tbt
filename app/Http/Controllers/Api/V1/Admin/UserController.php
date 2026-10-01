@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Institution;
 use App\Models\User;
+use App\Services\Ntb\Uam\UserAccessScopeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -13,11 +14,13 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    public function __construct(private readonly UserAccessScopeService $scope) {}
+
     public function index(Request $request): JsonResponse
     {
         abort_unless($request->user()?->can('admin.users'), 403);
 
-        $users = User::query()
+        $users = $this->scope->scopedUsersQuery($request)
             ->with(['institution', 'roles'])
             ->when($request->string('search')->toString(), function ($q, $search) {
                 $q->where(function ($inner) use ($search) {
@@ -67,7 +70,7 @@ class UserController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         abort_unless($request->user()?->can('admin.users'), 403);
-        $user = User::query()->findOrFail($id);
+        abort_unless($this->scope->canManageUser($request, $user = $this->scope->scopedUsersQuery($request)->findOrFail($id)), 403);
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],

@@ -185,8 +185,7 @@ class ReportGeneratorService
         }
 
         $writer = new CsvWriter($spreadsheet);
-        $full = storage_path('app/'.$path);
-        $writer->save($full);
+        $writer->save(Storage::disk('local')->path($path));
 
         return $path;
     }
@@ -220,8 +219,7 @@ class ReportGeneratorService
         }
 
         $writer = new XlsxWriter($spreadsheet);
-        $full = storage_path('app/'.$path);
-        $writer->save($full);
+        $writer->save(Storage::disk('local')->path($path));
 
         return $path;
     }

@@ -18,12 +18,22 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ]);
 
-        $identifier = $credentials['email'];
-        $user = User::query()->where('email', $identifier)->first();
+        $identifier = trim($credentials['email']);
+        $user = User::query()
+            ->where(fn ($q) => $q->where('email', $identifier)->orWhere('username', $identifier))
+            ->first();
+
+        if (str_contains($identifier, '@')) {
+            $credentials['email'] = $identifier;
+        } elseif ($user) {
+            $credentials['email'] = $user->email;
+        } else {
+            $credentials['email'] = $identifier;
+        }
 
         LoginAttempt::query()->create([
             'identifier' => $identifier,
@@ -62,6 +72,27 @@ class AuthController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
+
+        $authContext = strtolower((string) $request->header('X-Auth-Context', 'admin'));
+        if ($authContext === 'admin' && ! $user->canAccessAdminPortal()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => ['This account is for the public reporting portal only. Use “Report a Barrier” to sign in.'],
+            ]);
+        }
+
+        if ($authContext === 'portal' && ! $user->can('complaints.submit')) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => ['This account cannot submit complaints on the public portal. Use the administration login instead.'],
+            ]);
+        }
 
         if (! in_array($user->status, ['active', 'mfa_enrolment_required', 'password_reset_required'], true)) {
             Auth::logout();
@@ -132,6 +163,13 @@ class AuthController extends Controller
         $user = User::query()->findOrFail($userId);
         $this->mfa->verifyLoginChallenge($user, $data['challenge_id'], $data['code']);
 
+        $authContext = strtolower((string) $request->header('X-Auth-Context', 'admin'));
+        if ($authContext === 'admin' && ! $user->canAccessAdminPortal()) {
+            throw ValidationException::withMessages([
+                'code' => ['This account is not permitted to access the administration portal.'],
+            ]);
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('mfa_verified', true);
@@ -182,18 +220,27 @@ class AuthController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->displayName(),
+            'full_name' => $user->displayName(),
             'email' => $user->email,
+            'phone_number' => $user->phone_number,
+            'organization_name' => $user->organization_name,
+            'country' => $user->country,
             'username' => $user->username,
             'preferred_language' => $user->preferred_language,
             'institution_id' => $user->institution_id,
             'institution' => $user->institution?->institution_name,
             'status' => $user->status,
+            'account_category' => $user->account_category,
+            'organization_name' => $user->organization_name,
+            'country' => $user->country,
             'mfa_enrolled' => $user->mfa_enrolled,
             'mfa_verified' => $mfaVerified,
             'mfa_enrollment_required' => $this->mfa->isEnabled()
                 && ($enrollmentRequired || $user->status === 'mfa_enrolment_required'),
             'roles' => $user->getRoleNames()->values(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            'can_access_admin_portal' => $user->canAccessAdminPortal(),
+            'is_portal_reporter_only' => $user->isPortalReporterOnly(),
         ];
     }
 }

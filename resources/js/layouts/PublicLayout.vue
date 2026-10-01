@@ -113,6 +113,15 @@
               <option value="en">English</option>
               <option value="fr">Français</option>
             </select>
+            <RouterLink
+              v-if="!isReporterSession"
+              class="portal-nav__link"
+              :to="{ name: 'public-reporter-auth', query: { redirect: '/report' } }"
+              @click="navOpen = false"
+            >
+              <i class="ti ti-user" aria-hidden="true"></i>
+              {{ t('reporterSignIn') }}
+            </RouterLink>
             <RouterLink class="portal-nav__link" :to="{ name: 'login' }" @click="navOpen = false">
               <i class="ti ti-user-shield" aria-hidden="true"></i>
               {{ t('adminPortal') }}
@@ -173,8 +182,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { fetchAuthSession, getAuthUser, hasPermission } from '@/auth/session'
 import { useI18n } from '@/composables/useI18n'
 
 const publicContact = {
@@ -184,6 +194,11 @@ const publicContact = {
 
 const route = useRoute()
 const { locale, setLocale, t } = useI18n()
+const authUser = getAuthUser()
+
+onMounted(() => { fetchAuthSession() })
+
+const isReporterSession = computed(() => authUser.value && hasPermission('complaints.submit'))
 const currentLocale = ref(locale.value)
 const navOpen = ref(false)
 const year = new Date().getFullYear()
@@ -197,7 +212,9 @@ function onLocaleChange() {
 
 function isNavActive(name) {
   if (name === 'public-report') {
-    return route.name === 'public-report' || route.name === 'public-report-confirmation'
+    return route.name === 'public-report'
+      || route.name === 'public-report-confirmation'
+      || route.name === 'public-reporter-auth'
   }
   return route.name === name
 }

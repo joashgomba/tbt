@@ -23,6 +23,9 @@ class User extends Authenticatable
         'email',
         'gender',
         'phone_number',
+        'organization_name',
+        'country',
+        'ussd_pin_hash',
         'password',
         'institution_id',
         'unit_id',
@@ -48,6 +51,7 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
+        'ussd_pin_hash',
         'remember_token',
     ];
 
@@ -109,6 +113,11 @@ class User extends Authenticatable
         return $this->hasMany(NtbNotification::class);
     }
 
+    public function mobilePushDevices(): HasMany
+    {
+        return $this->hasMany(MobilePushDevice::class);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (User $user) {
@@ -129,5 +138,30 @@ class User extends Authenticatable
     public function displayName(): string
     {
         return $this->full_name ?: $this->name;
+    }
+
+    /** @var list<string> */
+    private const PORTAL_REPORTER_PERMISSIONS = [
+        'complaints.submit',
+        'complaints.view_own',
+        'complaints.update',
+    ];
+
+    public function canAccessAdminPortal(): bool
+    {
+        $permissions = $this->getAllPermissions()->pluck('name');
+
+        if ($permissions->isEmpty()) {
+            return false;
+        }
+
+        return $permissions->contains(
+            fn (string $permission) => ! in_array($permission, self::PORTAL_REPORTER_PERMISSIONS, true)
+        );
+    }
+
+    public function isPortalReporterOnly(): bool
+    {
+        return $this->can('complaints.submit') && ! $this->canAccessAdminPortal();
     }
 }

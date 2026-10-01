@@ -12,6 +12,7 @@ use App\Models\IntegrationSyncLog;
 use App\Models\IntegrationSystem;
 use App\Models\IntegrationWebhook;
 use App\Services\Ntb\AuditLogger;
+use App\Services\Ntb\Integrations\IntegrationAuthConfigService;
 use App\Services\Ntb\Integrations\IntegrationLifecycleService;
 use App\Services\Ntb\Integrations\IntegrationSyncService;
 use Illuminate\Http\JsonResponse;
@@ -23,8 +24,8 @@ class IntegrationManagementController extends Controller
 {
     private const SYSTEM_TYPES = ['national', 'regional', 'bilateral', 'international', 'agency'];
     private const DIRECTIONS = ['inbound', 'outbound', 'bidirectional'];
-    private const AUTH_METHODS = ['api_key', 'oauth2', 'basic', 'mtls', 'none'];
-    private const RESOURCE_TYPES = ['complaints', 'institutions', 'categories', 'corridors', 'locations', 'reports', 'analytics', 'custom'];
+    private const AUTH_METHODS = ['api_key', 'bearer', 'basic', 'oauth2', 'login', 'mtls', 'none'];
+    private const RESOURCE_TYPES = ['complaints', 'institutions', 'categories', 'corridors', 'locations', 'reports', 'analytics', 'meta', 'mobile', 'ussd', 'sms', 'custom'];
     private const SYNC_MODES = ['full', 'incremental', 'webhook', 'realtime'];
     private const EVENT_TYPES = [
         'complaint.created', 'complaint.updated', 'complaint.closed',
@@ -38,6 +39,7 @@ class IntegrationManagementController extends Controller
     public function __construct(
         private readonly IntegrationLifecycleService $lifecycle,
         private readonly IntegrationSyncService $sync,
+        private readonly IntegrationAuthConfigService $authConfig,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -86,6 +88,7 @@ class IntegrationManagementController extends Controller
             'scopes' => self::SCOPES,
             'institutions' => Institution::query()->where('status', 'active')->orderBy('institution_name')->get(['id', 'institution_name', 'institution_code']),
             'systems' => IntegrationSystem::query()->orderBy('name')->get(['id', 'system_code', 'name', 'direction', 'is_active']),
+            'auth_field_schemas' => $this->authConfig->fieldSchemas(),
         ]);
     }
 
@@ -120,7 +123,7 @@ class IntegrationManagementController extends Controller
         $system = IntegrationSystem::query()->create($data);
         $this->audit->log('integration.system.created', $system, null, $system->toArray(), $request);
 
-        return response()->json(['system' => $system->load('institution')], 201);
+        return response()->json(['system' => $this->presentSystem($system->load('institution'))], 201);
     }
 
     public function showSystem(Request $request, int $id): JsonResponse
@@ -132,7 +135,7 @@ class IntegrationManagementController extends Controller
         ])->findOrFail($id);
 
         return response()->json([
-            'system' => $system,
+            'system' => $this->presentSystem($system),
             'health' => $this->sync->systemHealth($system),
             'recent_logs' => $system->syncLogs()->orderByDesc('started_at')->limit(10)->get(),
         ]);
@@ -146,7 +149,17 @@ class IntegrationManagementController extends Controller
         $system->update($this->validateSystem($request, $system));
         $this->audit->log('integration.system.updated', $system, $old, $system->fresh()->toArray(), $request);
 
-        return response()->json(['system' => $system->fresh('institution')]);
+        return response()->json(['system' => $this->presentSystem($system->fresh(['institution', 'feeds', 'apiClients', 'webhooks']))]);
+    }
+
+    public function testSystemConnection(Request $request, int $id): JsonResponse
+    {
+        abort_unless($request->user()?->can('admin.integrations'), 403);
+        $system = IntegrationSystem::query()->findOrFail($id);
+        $testUrl = $request->validate(['test_url' => ['nullable', 'url', 'max:500']])['test_url'] ?? null;
+        $result = $this->authConfig->testConnection($system, $testUrl);
+
+        return response()->json($result);
     }
 
     public function activateSystem(Request $request, int $id): JsonResponse
@@ -309,6 +322,25 @@ class IntegrationManagementController extends Controller
         ]);
     }
 
+    public function storeExposedEndpoint(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->can('admin.integrations'), 403);
+        $data = $this->validateExposedEndpoint($request);
+        $endpoint = IntegrationExposedEndpoint::query()->create($data);
+        $this->audit->log('integration.exposed_endpoint.created', $endpoint, null, $endpoint->toArray(), $request);
+
+        return response()->json(['endpoint' => $endpoint], 201);
+    }
+
+    public function updateExposedEndpoint(Request $request, int $id): JsonResponse
+    {
+        abort_unless($request->user()?->can('admin.integrations'), 403);
+        $endpoint = IntegrationExposedEndpoint::query()->findOrFail($id);
+        $endpoint->update($this->validateExposedEndpoint($request, $endpoint));
+
+        return response()->json(['endpoint' => $endpoint->fresh()]);
+    }
+
     public function syncLogs(Request $request): JsonResponse
     {
         abort_unless($request->user()?->can('admin.integrations'), 403);
@@ -350,7 +382,7 @@ class IntegrationManagementController extends Controller
 
     private function validateSystem(Request $request, ?IntegrationSystem $existing = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'system_code' => ['nullable', 'string', 'max:40', Rule::unique('integration_systems', 'system_code')->ignore($existing?->id)],
             'name' => [$existing ? 'sometimes' : 'required', 'string', 'max:200'],
             'name_en' => ['nullable', 'string', 'max:200'],
@@ -361,13 +393,58 @@ class IntegrationManagementController extends Controller
             'institution_id' => ['nullable', 'integer', 'exists:institutions,id'],
             'base_url' => ['nullable', 'url', 'max:500'],
             'auth_method' => ['nullable', 'string', Rule::in(self::AUTH_METHODS)],
-            'auth_config' => ['nullable', 'string', 'max:2000'],
+            'auth_config' => ['nullable', 'array'],
             'contact_name' => ['nullable', 'string', 'max:120'],
             'contact_email' => ['nullable', 'email', 'max:120'],
             'description_en' => ['nullable', 'string', 'max:2000'],
             'description_fr' => ['nullable', 'string', 'max:2000'],
             'metadata' => ['nullable', 'array'],
             'is_active' => ['boolean'],
+        ]);
+
+        if ($request->has('auth_config')) {
+            $existingConfig = $existing ? $this->authConfig->decodeConfig($existing) : null;
+            $data['auth_config'] = $this->authConfig->merge($existingConfig, $data['auth_config'] ?? null);
+        }
+
+        return $data;
+    }
+
+    private function presentSystem(IntegrationSystem $system): IntegrationSystem
+    {
+        $system->setAttribute(
+            'auth_config',
+            $this->authConfig->redact($this->authConfig->decodeConfig($system))
+        );
+        $system->makeVisible(['auth_config']);
+
+        return $system;
+    }
+
+    private function validateExposedEndpoint(Request $request, ?IntegrationExposedEndpoint $existing = null): array
+    {
+        return $request->validate([
+            'endpoint_code' => [
+                $existing ? 'sometimes' : 'required',
+                'string',
+                'max:60',
+                Rule::unique('integration_exposed_endpoints', 'endpoint_code')->ignore($existing?->id),
+            ],
+            'name' => [$existing ? 'sometimes' : 'required', 'string', 'max:200'],
+            'name_en' => ['nullable', 'string', 'max:200'],
+            'name_fr' => ['nullable', 'string', 'max:200'],
+            'http_method' => ['nullable', 'string', Rule::in(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])],
+            'path' => [$existing ? 'sometimes' : 'required', 'string', 'max:300'],
+            'api_version' => ['nullable', 'string', 'max:20'],
+            'resource_type' => ['nullable', 'string', Rule::in(self::RESOURCE_TYPES)],
+            'description_en' => ['nullable', 'string', 'max:2000'],
+            'description_fr' => ['nullable', 'string', 'max:2000'],
+            'auth_required' => ['boolean'],
+            'scopes_required' => ['nullable', 'array'],
+            'scopes_required.*' => ['string', Rule::in(self::SCOPES)],
+            'is_published' => ['boolean'],
+            'documentation_url' => ['nullable', 'url', 'max:500'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
     }
 

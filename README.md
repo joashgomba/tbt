@@ -21,6 +21,7 @@ Authentication is handled **entirely within this application** using Laravel ses
 | Node.js | 20+ |
 | npm | 10+ (bundled with Node) |
 | Database | MySQL 8+ (recommended) or SQLite (local dev only) |
+| Flutter (mobile app) | 3.19+ stable — see [mobile/README.md](mobile/README.md) |
 
 PHP extensions required by Laravel: `BCMath`, `Ctype`, `cURL`, `DOM`, `Fileinfo`, `JSON`, `Mbstring`, `OpenSSL`, `PCRE`, `PDO`, `Tokenizer`, `XML`.
 
@@ -317,12 +318,19 @@ Replace the host with your `APP_URL` (e.g. `http://tbt.test/login` or `http://12
 
 Password for all: `password`
 
-| Email | Role |
-|-------|------|
-| sysadmin@ntb.dj | System Administrator |
-| focal@ntb.dj | National Focal Point |
-| agent@customs.dj | Institutional Officer |
-| operator@trade.dj | Economic Operator |
+| Email | Role | Admin login |
+|-------|------|-------------|
+| sysadmin@ntb.dj | System Administrator | Yes |
+| mttadmin@ntb.dj | MTT Administrator | Yes |
+| focal@ntb.dj | National Focal Point | Yes |
+| instadmin@customs.dj | Institutional Administrator | Yes |
+| agent@customs.dj | Institutional Officer | Yes |
+| nmc@ntb.dj | NMC Member | Yes |
+| analyst@ntb.dj | Analyst | Yes |
+| auditor@ntb.dj | Auditor | Yes |
+| operator@trade.dj | Economic Operator (public portal only) | No — use `/report` |
+
+You may sign in with **email or username** (e.g. `focalpoint` / `focal@ntb.dj`).
 
 #### Development
 
@@ -686,12 +694,19 @@ Remplacez l’hôte par votre `APP_URL` (ex. `http://tbt.test/login` ou `http://
 
 Mot de passe pour tous : `password`
 
-| E-mail | Rôle |
-|--------|------|
-| sysadmin@ntb.dj | Administrateur système |
-| focal@ntb.dj | Point focal national |
-| agent@customs.dj | Agent institutionnel |
-| operator@trade.dj | Opérateur économique |
+| E-mail | Rôle | Connexion admin |
+|--------|------|-----------------|
+| sysadmin@ntb.dj | Administrateur système | Oui |
+| mttadmin@ntb.dj | Administrateur MTT | Oui |
+| focal@ntb.dj | Point focal national | Oui |
+| instadmin@customs.dj | Administrateur institutionnel | Oui |
+| agent@customs.dj | Agent institutionnel | Oui |
+| nmc@ntb.dj | Membre CNM | Oui |
+| analyst@ntb.dj | Analyste | Oui |
+| auditor@ntb.dj | Auditeur | Oui |
+| operator@trade.dj | Opérateur économique (portail public) | Non — utiliser `/report` |
+
+Connexion avec **e-mail ou nom d’utilisateur** (ex. `focalpoint` / `focal@ntb.dj`).
 
 #### Développement
 

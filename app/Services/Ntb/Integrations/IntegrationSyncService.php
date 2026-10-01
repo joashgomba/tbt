@@ -13,6 +13,8 @@ use Throwable;
 
 class IntegrationSyncService
 {
+    public function __construct(private readonly IntegrationAuthConfigService $auth) {}
+
     public function runFeedSync(IntegrationFeed $feed, string $triggeredBy = 'manual'): IntegrationSyncLog
     {
         $feed->load('system');
@@ -158,13 +160,12 @@ class IntegrationSyncService
             $feed->headers ?? []
         );
 
-        if ($system?->auth_method === 'api_key' && $system->auth_config) {
-            $headers['Authorization'] = 'Bearer '.$system->auth_config;
+        $pending = Http::timeout(30)->withHeaders($headers);
+        if ($system) {
+            $pending = $this->auth->apply($pending, $system);
         }
 
-        $response = Http::timeout(30)
-            ->withHeaders($headers)
-            ->send(strtoupper($feed->http_method), $url);
+        $response = $pending->send(strtoupper($feed->http_method), $url);
 
         if (! $response->successful()) {
             return [

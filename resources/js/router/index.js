@@ -6,6 +6,7 @@ const AdminLayout = () => import('@/layouts/AdminLayout.vue')
 
 const PublicHome = () => import('@/views/public/PublicHome.vue')
 const PublicReport = () => import('@/views/public/PublicReport.vue')
+const PublicReporterAuth = () => import('@/views/public/PublicReporterAuth.vue')
 const PublicReportConfirmation = () => import('@/views/public/PublicReportConfirmation.vue')
 const PublicTrack = () => import('@/views/public/PublicTrack.vue')
 const PublicTransparency = () => import('@/views/public/PublicTransparency.vue')
@@ -28,7 +29,8 @@ const router = createRouter({
       meta: { public: true },
       children: [
         { path: '', name: 'public-home', component: PublicHome },
-        { path: 'report', name: 'public-report', component: PublicReport },
+        { path: 'report/account', name: 'public-reporter-auth', component: PublicReporterAuth, meta: { public: true } },
+        { path: 'report', name: 'public-report', component: PublicReport, meta: { requiresReporter: true, public: true } },
         { path: 'report/confirmation/:code', name: 'public-report-confirmation', component: PublicReportConfirmation },
         { path: 'track', name: 'public-track', component: PublicTrack },
         { path: 'transparency', name: 'public-transparency', component: PublicTransparency },
@@ -45,12 +47,12 @@ const router = createRouter({
       path: '/login/mfa',
       name: 'admin-mfa-verify',
       component: () => import('@/views/auth/MfaVerify.vue'),
-      meta: { public: true },
+      meta: { public: true, requiresAdminPortal: true },
     },
     {
       path: '/admin',
       component: AdminLayout,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresAdminPortal: true },
       children: [
         { path: '', name: 'admin-dashboard', component: Dashboard, meta: { permission: 'dashboards.operational' } },
         { path: 'complaints', name: 'admin-complaints', component: Complaints, meta: { permission: 'complaints.view_all' } },
@@ -65,6 +67,8 @@ const router = createRouter({
         { path: 'locations', name: 'admin-locations', component: () => import('@/views/admin/LocationManagement.vue'), meta: { permission: 'admin.locations' } },
         { path: 'audit', name: 'admin-audit', component: () => import('@/views/admin/AuditManagement.vue'), meta: { permission: 'audit.view' } },
         { path: 'integrations', name: 'admin-integrations', component: () => import('@/views/admin/IntegrationManagement.vue'), meta: { permission: 'admin.integrations' } },
+        { path: 'ussd-simulator', name: 'admin-ussd-simulator', component: () => import('@/views/admin/UssdSimulator.vue'), meta: { permission: 'admin.integrations' } },
+        { path: 'developer-docs', name: 'admin-developer-docs', component: () => import('@/views/admin/DeveloperDocumentation.vue'), meta: { permission: 'admin.integrations' } },
       ],
     },
   ],

@@ -34,6 +34,10 @@ http.interceptors.response.use(
       }
     }
 
+    if (status === 403 && window.location.pathname.startsWith('/admin')) {
+      window.location.href = '/report/account?redirect=/report'
+    }
+
     if (status === 419) {
       window.location.reload()
     }

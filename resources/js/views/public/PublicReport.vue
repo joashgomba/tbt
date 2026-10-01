@@ -8,6 +8,21 @@
 
     <form @submit.prevent="onSubmit" novalidate>
       <div class="portal-wizard__body">
+        <div v-if="reporter" class="portal-reporter-account mb-4" role="status">
+          <div>
+            <p class="portal-reporter-account__label">{{ t('signedInAs') }}</p>
+            <p class="portal-reporter-account__name">{{ reporter.name }}</p>
+            <p class="portal-reporter-account__meta">
+              <span v-if="reporter.organization_name">{{ reporter.organization_name }}</span>
+              <span v-if="reporter.organization_name && reporter.email"> · </span>
+              <span>{{ reporter.email }}</span>
+            </p>
+          </div>
+          <button type="button" class="portal-btn portal-btn--outline portal-btn--sm" :disabled="signingOut" @click="signOut">
+            {{ signingOut ? t('loading') : t('signOut') }}
+          </button>
+        </div>
+
         <div v-if="stepError" class="portal-alert portal-alert--error" role="alert">
           {{ stepError }}
         </div>
@@ -17,8 +32,8 @@
           <legend class="visually-hidden">{{ t('stepDescribe') }}</legend>
           <div class="portal-form-grid">
             <div class="portal-field">
-              <label for="title">{{ t('title') }} <span class="required" aria-hidden="true">*</span></label>
-              <p id="title-hint" class="portal-field__hint">{{ t('titleHint') }}</p>
+              <label for="title">{{ t('title') }}</label>
+              <p id="title-hint" class="portal-field__hint">{{ t('titleOptionalHint') }}</p>
               <input
                 id="title"
                 v-model="form.title"
@@ -41,6 +56,35 @@
                 aria-describedby="desc-hint desc-error"
               ></textarea>
               <p v-if="errors.description" id="desc-error" class="portal-field__error">{{ errors.description }}</p>
+            </div>
+            <div class="portal-field portal-form-grid--2-span">
+              <label for="occurrence_date">{{ t('occurrenceDate') }} <span class="required" aria-hidden="true">*</span></label>
+              <p id="occurrence-hint" class="portal-field__hint">{{ t('occurrenceDateHint') }}</p>
+              <input
+                id="occurrence_date"
+                v-model="form.occurrence_date"
+                type="date"
+                :max="todayIso"
+                :aria-invalid="!!errors.occurrence_date"
+                aria-describedby="occurrence-hint occurrence-error"
+              />
+              <p v-if="errors.occurrence_date" id="occurrence-error" class="portal-field__error">{{ errors.occurrence_date }}</p>
+            </div>
+            <div class="portal-field portal-form-grid--2-span">
+              <label for="country_affected">{{ t('countryAffected') }} <span class="required" aria-hidden="true">*</span></label>
+              <p id="affected-hint" class="portal-field__hint">{{ t('countryAffectedHint') }}</p>
+              <select
+                id="country_affected"
+                v-model="form.country_affected"
+                :aria-invalid="!!errors.country_affected"
+                aria-describedby="affected-hint affected-error"
+              >
+                <option value="">{{ t('selectOption') }}</option>
+                <option v-for="c in lookups.countries" :key="c.code" :value="c.name_en">
+                  {{ localizedCountry(c) }}
+                </option>
+              </select>
+              <p v-if="errors.country_affected" id="affected-error" class="portal-field__error">{{ errors.country_affected }}</p>
             </div>
             <div class="portal-field">
               <label for="category">{{ t('category') }} <span class="required" aria-hidden="true">*</span></label>
@@ -96,62 +140,87 @@
             </div>
             <div class="portal-field">
               <label for="origin">{{ t('originCountry') }} <span class="required" aria-hidden="true">*</span></label>
-              <input
+              <select
                 id="origin"
                 v-model="form.country_origin"
-                type="text"
                 :aria-invalid="!!errors.country_origin"
                 aria-describedby="origin-error"
-              />
+              >
+                <option value="">{{ t('selectOption') }}</option>
+                <option v-for="c in lookups.countries" :key="`o-${c.code}`" :value="c.name_en">
+                  {{ localizedCountry(c) }}
+                </option>
+              </select>
               <p v-if="errors.country_origin" id="origin-error" class="portal-field__error">{{ errors.country_origin }}</p>
             </div>
             <div class="portal-field">
               <label for="destination">{{ t('destinationCountry') }} <span class="required" aria-hidden="true">*</span></label>
-              <input
+              <select
                 id="destination"
                 v-model="form.country_destination"
-                type="text"
                 :aria-invalid="!!errors.country_destination"
                 aria-describedby="dest-error"
-              />
+              >
+                <option value="">{{ t('selectOption') }}</option>
+                <option v-for="c in lookups.countries" :key="`d-${c.code}`" :value="c.name_en">
+                  {{ localizedCountry(c) }}
+                </option>
+              </select>
               <p v-if="errors.country_destination" id="dest-error" class="portal-field__error">{{ errors.country_destination }}</p>
             </div>
           </div>
         </fieldset>
 
-        <!-- Step 3: Contact -->
+        <!-- Step 3: Product -->
         <fieldset v-show="step === 3" class="border-0 p-0 m-0">
-          <legend class="visually-hidden">{{ t('stepContact') }}</legend>
-          <div class="portal-alert portal-alert--info mb-3" role="note">
-            <i class="ti ti-info-circle me-1" aria-hidden="true"></i>
-            {{ t('contactPrivacyNote') }}
-          </div>
-          <div class="portal-form-grid portal-form-grid--2">
+          <legend class="visually-hidden">{{ t('stepProduct') }}</legend>
+          <div class="portal-form-grid">
             <div class="portal-field">
-              <label for="name">{{ t('reporterName') }}</label>
-              <p id="name-hint" class="portal-field__hint">{{ t('reporterNameHint') }}</p>
-              <input id="name" v-model="form.reporter_name" type="text" autocomplete="name" aria-describedby="name-hint" />
+              <label for="product_description">{{ t('productDescription') }}</label>
+              <p id="product-desc-hint" class="portal-field__hint">{{ t('productDescriptionHint') }}</p>
+              <textarea
+                id="product_description"
+                v-model="form.product_description"
+                rows="4"
+                :aria-invalid="!!errors.product_description"
+                aria-describedby="product-desc-hint"
+              ></textarea>
             </div>
             <div class="portal-field">
-              <label for="email">{{ t('reporterEmail') }}</label>
-              <p id="email-hint" class="portal-field__hint">{{ t('reporterEmailHint') }}</p>
-              <input id="email" v-model="form.reporter_email" type="email" autocomplete="email" aria-describedby="email-hint" />
-            </div>
-            <div class="portal-field">
-              <label for="phone">{{ t('reporterPhone') }}</label>
-              <p id="phone-hint" class="portal-field__hint">{{ t('reporterPhoneHint') }}</p>
-              <input id="phone" v-model="form.reporter_phone" type="tel" autocomplete="tel" aria-describedby="phone-hint" />
-            </div>
-            <div class="portal-field">
-              <label for="gender">{{ t('gender') }}</label>
-              <p id="gender-hint" class="portal-field__hint">{{ t('genderOptional') }}</p>
-              <select id="gender" v-model="form.gender" aria-describedby="gender-hint">
+              <label for="product_country_origin">{{ t('productCountryOrigin') }}</label>
+              <select id="product_country_origin" v-model="form.product_country_origin">
                 <option value="">{{ t('selectOption') }}</option>
-                <option value="M">{{ t('genderM') }}</option>
-                <option value="F">{{ t('genderF') }}</option>
-                <option value="NB">{{ t('genderNB') }}</option>
-                <option value="NA">{{ t('genderNA') }}</option>
+                <option v-for="c in lookups.countries" :key="`p-${c.code}`" :value="c.name_en">
+                  {{ localizedCountry(c) }}
+                </option>
               </select>
+            </div>
+            <div class="portal-field">
+              <label for="product_value_currency">{{ t('productValue') }}</label>
+              <p id="value-hint" class="portal-field__hint">{{ t('productValueHint') }}</p>
+              <div class="portal-value-row">
+                <select
+                  id="product_value_currency"
+                  v-model="form.product_value_currency"
+                  :aria-invalid="!!errors.product_value_currency"
+                  aria-describedby="value-hint"
+                >
+                  <option value="">{{ t('currency') }}</option>
+                  <option v-for="cur in lookups.currencies" :key="cur" :value="cur">{{ cur }}</option>
+                </select>
+                <input
+                  id="product_value_amount"
+                  v-model="form.product_value_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputmode="decimal"
+                  :placeholder="t('amount')"
+                  :aria-invalid="!!errors.product_value_amount"
+                />
+              </div>
+              <p v-if="errors.product_value_currency" class="portal-field__error">{{ errors.product_value_currency }}</p>
+              <p v-if="errors.product_value_amount" class="portal-field__error">{{ errors.product_value_amount }}</p>
             </div>
           </div>
         </fieldset>
@@ -239,43 +308,56 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { http } from '@/api/http'
+import { fetchAuthSession, getAuthUser, logout } from '@/auth/session'
 import { useI18n } from '@/composables/useI18n'
 import PublicStepIndicator from '@/components/public/PublicStepIndicator.vue'
 
 const router = useRouter()
-const { t, localizedName } = useI18n()
+const { t, localizedName, locale } = useI18n()
+const authUser = getAuthUser()
+const reporter = computed(() => authUser.value)
 
 const MAX_ATTACHMENTS = 5
 
 const step = ref(1)
+const signingOut = ref(false)
 const loading = ref(false)
 const stepError = ref('')
 const submitError = ref('')
 const files = ref([])
 const fileInput = ref(null)
 const errors = reactive({})
-const lookups = reactive({ categories: [], corridors: [], locations: [] })
+const lookups = reactive({ categories: [], corridors: [], locations: [], countries: [], currencies: [] })
+
+const todayIso = new Date().toISOString().slice(0, 10)
 
 const form = reactive({
   title: '',
   description: '',
+  occurrence_date: '',
+  country_affected: 'Djibouti',
   ntb_category_id: '',
   corridor_id: '',
   location_id: '',
   country_origin: 'Ethiopia',
   country_destination: 'Djibouti',
-  reporter_name: '',
-  reporter_email: '',
-  reporter_phone: '',
-  gender: '',
+  product_description: '',
+  product_country_origin: '',
+  product_value_currency: '',
+  product_value_amount: '',
 })
 
 const wizardSteps = computed(() => [
   { key: 'describe', label: t('stepDescribe') },
   { key: 'location', label: t('stepLocation') },
-  { key: 'contact', label: t('stepContact') },
+  { key: 'product', label: t('stepProduct') },
   { key: 'documents', label: t('stepDocuments') },
 ])
+
+function localizedCountry(c) {
+  if (!c) return ''
+  return locale.value === 'fr' ? (c.name_fr || c.name_en) : (c.name_en || c.name_fr)
+}
 
 const filteredLocations = computed(() =>
   lookups.locations.filter((l) => !form.corridor_id || l.corridor_id == form.corridor_id),
@@ -308,9 +390,25 @@ watch(() => form.corridor_id, () => {
 })
 
 onMounted(async () => {
+  await fetchAuthSession()
+  const user = authUser.value
+  if (user?.country && !form.country_origin.trim()) {
+    form.country_origin = user.country
+  }
   const { data } = await http.get('/public/lookups')
   Object.assign(lookups, data)
 })
+
+async function signOut() {
+  if (signingOut.value) return
+  signingOut.value = true
+  try {
+    await logout()
+    await router.replace({ name: 'public-reporter-auth', query: { redirect: '/report', signedOut: '1' } })
+  } finally {
+    signingOut.value = false
+  }
+}
 
 function clearErrors() {
   Object.keys(errors).forEach((k) => delete errors[k])
@@ -322,8 +420,9 @@ function validateStep(current) {
   let valid = true
 
   if (current === 1) {
-    if (!form.title.trim()) { errors.title = t('fieldRequired'); valid = false }
     if (!form.description.trim()) { errors.description = t('fieldRequired'); valid = false }
+    if (!form.occurrence_date) { errors.occurrence_date = t('fieldRequired'); valid = false }
+    if (!form.country_affected) { errors.country_affected = t('fieldRequired'); valid = false }
     if (!form.ntb_category_id) { errors.ntb_category_id = t('fieldRequired'); valid = false }
   }
 
@@ -337,6 +436,19 @@ function validateStep(current) {
     }
     if (!form.country_origin.trim()) { errors.country_origin = t('fieldRequired'); valid = false }
     if (!form.country_destination.trim()) { errors.country_destination = t('fieldRequired'); valid = false }
+  }
+
+  if (current === 3) {
+    const hasAmount = form.product_value_amount !== '' && form.product_value_amount != null
+    const hasCurrency = !!form.product_value_currency
+    if (hasAmount && !hasCurrency) {
+      errors.product_value_currency = t('fieldRequired')
+      valid = false
+    }
+    if (hasCurrency && !hasAmount) {
+      errors.product_value_amount = t('fieldRequired')
+      valid = false
+    }
   }
 
   if (current === 4 && files.value.length > MAX_ATTACHMENTS) {
@@ -395,6 +507,10 @@ async function onSubmit() {
     step.value = 2
     return
   }
+  if (!validateStep(3)) {
+    step.value = 3
+    return
+  }
   if (!validateStep(4)) return
 
   loading.value = true
@@ -419,6 +535,47 @@ async function onSubmit() {
 </script>
 
 <style scoped>
+.portal-reporter-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--portal-border, #d0d7de);
+  background: #f8fafc;
+}
+
+.portal-reporter-account__label {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.portal-reporter-account__name {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+}
+
+.portal-reporter-account__meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.portal-form-grid--2-span {
+  grid-column: 1 / -1;
+}
+
+.portal-value-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

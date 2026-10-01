@@ -107,12 +107,17 @@ class UserAccessController extends Controller
             $institutionQuery->where('id', $actor->institution_id);
         }
 
+        $roleQuery = Role::query()
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
+            ->orderBy('name');
+
+        if ($actor->hasRole('national_focal_point') && ! $actor->hasRole(['system_administrator', 'mtt_admin'])) {
+            $roleQuery->whereIn('name', UserAccessScopeService::NATIONAL_FOCAL_ASSIGNABLE_ROLES);
+        }
+
         return response()->json([
             'institutions' => $institutionQuery->get(['id', 'institution_name', 'institution_code', 'status']),
-            'roles' => Role::query()
-                ->where(fn ($q) => $q->where('is_active', true)->orWhereNull('is_active'))
-                ->orderBy('name')
-                ->get(['id', 'name', 'code', 'title_en', 'title_fr', 'category', 'scope']),
+            'roles' => $roleQuery->get(['id', 'name', 'code', 'title_en', 'title_fr', 'category', 'scope']),
             'statuses' => self::STATUSES,
             'categories' => self::CATEGORIES,
         ]);
@@ -147,6 +152,10 @@ class UserAccessController extends Controller
         if ($request->filled('role')) {
             $role = $request->string('role');
             $query->whereHas('roles', fn ($q) => $q->where('name', $role));
+        }
+
+        if ($request->filled('account_category')) {
+            $query->where('account_category', $request->string('account_category'));
         }
 
         return response()->json(['data' => $query->limit(200)->get()]);
@@ -472,6 +481,7 @@ class UserAccessController extends Controller
     public function institutionUsers(Request $request, int $id): JsonResponse
     {
         abort_unless($this->scope->canManageUsers($request), 403);
+        abort_unless($this->scope->canAccessInstitution($request, $id), 403);
 
         $users = User::query()
             ->where('institution_id', $id)
@@ -480,6 +490,37 @@ class UserAccessController extends Controller
             ->get();
 
         return response()->json(['users' => $users]);
+    }
+
+    public function portalReporters(Request $request): JsonResponse
+    {
+        abort_unless($this->scope->canManageUsers($request), 403);
+        abort_unless(
+            $request->user()?->can('admin.users') && $request->user()?->hasRole(['system_administrator', 'mtt_admin', 'national_focal_point']),
+            403,
+            'Only national administrators can moderate public complaint reporters.'
+        );
+
+        $query = $this->scope->portalReportersQuery()
+            ->with(['roles:id,name'])
+            ->orderByDesc('created_at');
+
+        if ($search = $request->string('search')->trim()->value()) {
+            $query->where(function ($q) use ($search) {
+                $q->where('username', 'like', "%{$search}%")
+                    ->orWhere('full_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('organization_name', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        return response()->json([
+            'data' => $query->limit(200)->get(),
+        ]);
     }
 
     public function units(Request $request, int $id): JsonResponse

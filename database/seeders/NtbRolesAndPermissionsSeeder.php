@@ -55,6 +55,7 @@ class NtbRolesAndPermissionsSeeder extends Seeder
                 'complaints.view_all', 'complaints.validate', 'complaints.assign',
                 'complaints.escalate', 'complaints.reopen', 'audit.view',
                 'dashboards.operational', 'reports.generate', 'reports.export',
+                'admin.users',
             ],
             'institutional_officer' => [
                 'complaints.view_all', 'complaints.process', 'complaints.close',

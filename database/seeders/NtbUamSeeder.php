@@ -78,14 +78,8 @@ class NtbUamSeeder extends Seeder
             );
         }
 
-        User::query()->whereNull('user_uuid')->each(function (User $user) {
-            $user->update([
-                'account_category' => $user->institution_id ? 'institutional' : 'external',
-                'mfa_enrolled' => $user->hasRole(['system_administrator', 'mtt_admin', 'national_focal_point']),
-            ]);
-        });
-
         User::query()
+            ->whereIn('email', NtbDemoUsersSeeder::DEMO_EMAILS)
             ->where('mfa_enrolled', true)
             ->each(function (User $user) {
                 MfaMethod::query()->updateOrCreate(

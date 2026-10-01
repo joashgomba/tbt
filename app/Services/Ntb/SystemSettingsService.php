@@ -26,6 +26,11 @@ class SystemSettingsService
         return SystemSetting::getValue('sms_webhook_secret');
     }
 
+    public function ussdWebhookSecret(): ?string
+    {
+        return SystemSetting::getValue('ussd_webhook_secret');
+    }
+
     /** @return array<string, mixed> */
     public function all(): array
     {
@@ -34,6 +39,7 @@ class SystemSettingsService
             'archive_retention_years' => $this->retentionYears(),
             'duplicate_detection_days' => $this->duplicateWindowDays(),
             'sms_webhook_secret' => $this->smsWebhookSecret(),
+            'ussd_webhook_secret' => $this->ussdWebhookSecret(),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Complaint;
+use App\Services\Ntb\ComplaintScopeService;
 use App\Models\ComplaintStatus;
 use App\Models\Corridor;
 use App\Models\Institution;
@@ -18,9 +19,14 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly ComplaintScopeService $scope) {}
+
     public function index(Request $request): JsonResponse
     {
-        $baseQuery = $this->scopedComplaintsQuery($request);
+        abort_unless($request->user()?->can('dashboards.operational'), 403);
+        $this->scope->authorizeView($request->user());
+
+        $baseQuery = $this->scope->scopeQuery($request->user());
         $query = $this->applyDashboardFilters(clone $baseQuery, $request);
 
         $complaintIds = (clone $query)->pluck('id');
@@ -230,26 +236,6 @@ class DashboardController extends Controller
         }
 
         return $query;
-    }
-
-    private function scopedComplaintsQuery(Request $request): Builder
-    {
-        $query = Complaint::query();
-        $user = $request->user();
-
-        if ($user->can('complaints.view_all')) {
-            return $query;
-        }
-
-        if ($user->can('complaints.view_own')) {
-            return $query->where('created_by', $user->id);
-        }
-
-        if ($user->institution_id) {
-            return $query->where('assigned_institution_id', $user->institution_id);
-        }
-
-        return $query->whereRaw('1 = 0');
     }
 
     private function countryLat(?string $country): float

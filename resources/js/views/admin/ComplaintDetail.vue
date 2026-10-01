@@ -48,8 +48,13 @@
             <div class="col-md-6"><strong>{{ t('corridor') }}</strong><div>{{ localizedName(complaint.corridor) }}</div></div>
             <div class="col-md-6"><strong>{{ t('location') }}</strong><div>{{ localizedName(complaint.location) || '—' }}</div></div>
             <div class="col-md-6"><strong>{{ t('institution') }}</strong><div>{{ complaint.assigned_institution?.institution_name || '—' }}</div></div>
+            <div class="col-md-6"><strong>{{ t('occurrenceDate') }}</strong><div>{{ complaint.occurrence_date || '—' }}</div></div>
+            <div class="col-md-6"><strong>{{ t('countryAffected') }}</strong><div>{{ complaint.country_affected || '—' }}</div></div>
             <div class="col-md-6"><strong>{{ t('reporter') }}</strong><div>{{ complaint.reporter_name || t('anonymous') }}</div></div>
             <div class="col-md-6"><strong>{{ t('contact') }}</strong><div>{{ complaint.reporter_email || complaint.reporter_phone || '—' }}</div></div>
+            <div v-if="complaint.product_description" class="col-12"><strong>{{ t('productDescription') }}</strong><div>{{ complaint.product_description }}</div></div>
+            <div v-if="complaint.product_country_origin" class="col-md-6"><strong>{{ t('productCountryOrigin') }}</strong><div>{{ complaint.product_country_origin }}</div></div>
+            <div v-if="complaint.product_value_amount" class="col-md-6"><strong>{{ t('productValue') }}</strong><div>{{ complaint.product_value_currency }} {{ complaint.product_value_amount }}</div></div>
           </div>
         </div></div>
       </div>
@@ -322,10 +327,13 @@ const slaBadge = computed(() => {
   return null
 })
 
-const canValidate = computed(() => hasPermission('complaints.validate') && ['submitted', 'under_validation'].includes(statusCode.value))
+const canValidate = computed(() => {
+  if (!hasPermission('complaints.validate')) return false
+  return allowed.value.includes('under_validation') || allowed.value.includes('assigned')
+})
 const canRequestInfo = computed(() => hasPermission('complaints.validate') && allowed.value.includes('additional_info_requested'))
 const canAssign = computed(() => hasPermission('complaints.assign') && allowed.value.includes('assigned'))
-const canProcess = computed(() => hasPermission('complaints.process') && ['assigned', 'in_processing', 'reopened'].includes(statusCode.value))
+const canProcess = computed(() => hasPermission('complaints.process') && allowed.value.includes('in_processing'))
 const canResolve = computed(() => hasPermission('complaints.process') && allowed.value.includes('resolved'))
 const canClose = computed(() => hasPermission('complaints.close') && allowed.value.includes('closed'))
 const canArchive = computed(() => hasPermission('complaints.close') && allowed.value.includes('archived'))

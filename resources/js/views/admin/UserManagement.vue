@@ -99,7 +99,11 @@
             <div class="col-md-2"><label class="form-label">{{ t('uamRole') }}</label>
               <select v-model="userFilters.role" class="form-select"><option value="">{{ t('all') }}</option>
                 <option v-for="r in lookups.roles" :key="r.id" :value="r.name">{{ r.name }}</option></select></div>
+            <div class="col-md-2"><label class="form-label">{{ t('accountCategory') }}</label>
+              <select v-model="userFilters.account_category" class="form-select"><option value="">{{ t('all') }}</option>
+                <option v-for="c in lookups.categories" :key="c" :value="c">{{ c }}</option></select></div>
             <div class="col-md-2"><button type="button" class="btn btn-primary w-100" @click="loadUsers">{{ t('applyFilters') }}</button></div>
+            <div class="col-md-2"><button type="button" class="btn btn-outline-secondary w-100" @click="filterRegisteredReporters">{{ t('uamRegisteredReporters') }}</button></div>
           </div>
         </div></div>
         <div class="row g-4">
@@ -132,6 +136,10 @@
                 <p class="small"><strong>{{ t('uamRole') }}:</strong> {{ selectedUser.roles?.[0]?.name }}</p>
                 <p class="small"><strong>{{ t('status') }}:</strong> {{ selectedUser.status }}</p>
                 <p class="small"><strong>{{ t('uamLastLogin') }}:</strong> {{ formatDate(selectedUser.last_login_at) }}</p>
+                <p v-if="selectedUser.account_category" class="small"><strong>{{ t('accountCategory') }}:</strong> {{ selectedUser.account_category }}</p>
+                <p v-if="selectedUser.organization_name" class="small"><strong>{{ t('organizationName') }}:</strong> {{ selectedUser.organization_name }}</p>
+                <p v-if="selectedUser.country" class="small"><strong>{{ t('country') }}:</strong> {{ selectedUser.country }}</p>
+                <p v-if="selectedUser.phone_number" class="small"><strong>{{ t('reporterPhone') }}:</strong> {{ selectedUser.phone_number }}</p>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                   <button v-if="selectedUser.status !== 'active'" type="button" class="btn btn-sm btn-success" @click="userAction('activate')">{{ t('uamActivate') }}</button>
                   <button v-if="selectedUser.status === 'active'" type="button" class="btn btn-sm btn-warning" @click="userAction('suspend')">{{ t('uamSuspend') }}</button>
@@ -477,7 +485,7 @@ const showReviewModal = ref(false)
 const reviewForm = ref({ title: '', institution_id: '', due_at: '' })
 const me = ref(null)
 
-const userFilters = ref({ search: '', institution_id: '', status: '', role: '' })
+const userFilters = ref({ search: '', institution_id: '', status: '', role: '', account_category: '' })
 const userForm = ref({ name: '', username: '', email: '', password: '', institution_id: '', role: 'institutional_officer', preferred_language: 'fr', account_category: 'institutional' })
 const delegationForm = ref({ delegator_id: '', delegate_id: '', starts_at: '', ends_at: '', reason: '' })
 
@@ -560,6 +568,22 @@ async function loadAll(manual = false) {
 async function loadUsers() {
   const { data } = await http.get('/uam/users', { params: buildUserParams() })
   users.value = data.data || data || []
+}
+
+async function filterRegisteredReporters() {
+  userFilters.value = {
+    search: '',
+    institution_id: '',
+    status: '',
+    role: 'economic_operator',
+    account_category: 'external',
+  }
+  try {
+    const { data } = await http.get('/uam/portal-reporters')
+    users.value = data.data || []
+  } catch {
+    await loadUsers()
+  }
 }
 
 async function loadRoles() {

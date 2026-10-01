@@ -439,7 +439,7 @@ class ReportController extends Controller
         $instance = $this->generator->processInstance($instance, $request);
         $this->logExport($request, 'xlsx', $filters, $instance->id);
 
-        return Storage::disk('local')->download($instance->file_path, basename($instance->file_path));
+        return $this->downloadReportFile($instance, 'xlsx');
     }
 
     public function exportPdf(Request $request)
@@ -451,7 +451,7 @@ class ReportController extends Controller
         $instance = $this->generator->processInstance($instance, $request);
         $this->logExport($request, 'pdf', $filters, $instance->id);
 
-        return Storage::disk('local')->download($instance->file_path, basename($instance->file_path));
+        return $this->downloadReportFile($instance, 'pdf');
     }
 
     public function adminDefinitions(Request $request): JsonResponse
@@ -609,6 +609,21 @@ class ReportController extends Controller
     private function authorizeExport(Request $request): void
     {
         abort_unless($request->user()?->can('reports.export'), 403);
+    }
+
+    private function downloadReportFile(ReportInstance $instance, string $format)
+    {
+        if ($instance->status !== 'completed' || ! $instance->file_path) {
+            abort(422, $instance->error_message ?: 'Report export failed. Please try again.');
+        }
+
+        if (! Storage::disk('local')->exists($instance->file_path)) {
+            abort(404, 'Export file is no longer available.');
+        }
+
+        $filename = basename($instance->file_path) ?: 'report-'.now()->format('Ymd-His').'.'.$format;
+
+        return Storage::disk('local')->download($instance->file_path, $filename);
     }
 
     private function logExport(Request $request, string $format, array $filters, ?int $instanceId = null): void

@@ -17,9 +17,15 @@ use App\Http\Controllers\Api\V1\Admin\WorkflowConfigController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\MfaController;
 use App\Http\Controllers\Api\V1\Public\PublicComplaintController;
+use App\Http\Controllers\Api\V1\Public\PublicReporterAuthController;
 use App\Http\Controllers\Api\V1\Public\PublicTransparencyController;
 use App\Http\Controllers\Api\V1\Partner\PartnerIntegrationController;
 use App\Http\Controllers\Api\V1\Public\SmsComplaintController;
+use App\Http\Controllers\Api\V1\Mobile\MobileAuthController;
+use App\Http\Controllers\Api\V1\Mobile\MobileComplaintController;
+use App\Http\Controllers\Api\V1\Mobile\MobilePushController;
+use App\Http\Controllers\Api\V1\Channels\UssdGatewayController;
+use App\Http\Controllers\Api\V1\Admin\DeveloperDocumentationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -34,9 +40,31 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+Route::prefix('mobile')->group(function () {
+    Route::post('/auth/login', [MobileAuthController::class, 'login']);
+    Route::post('/auth/register', [MobileAuthController::class, 'register']);
+    Route::middleware('mobile.token')->group(function () {
+        Route::post('/auth/logout', [MobileAuthController::class, 'logout']);
+        Route::get('/auth/me', [MobileAuthController::class, 'me']);
+        Route::get('/lookups', [MobileComplaintController::class, 'lookups']);
+        Route::get('/complaints', [MobileComplaintController::class, 'index']);
+        Route::post('/complaints', [MobileComplaintController::class, 'store']);
+        Route::get('/complaints/{code}', [MobileComplaintController::class, 'show']);
+        Route::post('/push/register', [MobilePushController::class, 'registerDevice']);
+        Route::post('/push/unregister', [MobilePushController::class, 'unregisterDevice']);
+        Route::put('/push/preferences', [MobilePushController::class, 'updatePreferences']);
+    });
+});
+
+Route::prefix('channels/ussd')->middleware('ussd.gateway')->group(function () {
+    Route::post('/callback', [UssdGatewayController::class, 'callback']);
+    Route::get('/schema', [UssdGatewayController::class, 'schema']);
+});
+
 Route::prefix('public')->group(function () {
+    Route::post('/auth/register', [PublicReporterAuthController::class, 'register']);
     Route::get('/lookups', [PublicComplaintController::class, 'lookups']);
-    Route::post('/complaints', [PublicComplaintController::class, 'store']);
+    Route::post('/complaints', [PublicComplaintController::class, 'store'])->middleware('auth');
     Route::get('/complaints/{code}', [PublicComplaintController::class, 'show']);
     Route::post('/sms/complaints', [SmsComplaintController::class, 'store']);
     Route::get('/transparency/lookups', [PublicTransparencyController::class, 'lookups']);
@@ -54,7 +82,7 @@ Route::prefix('partner')->middleware('integration.client')->group(function () {
     Route::get('/reports/summary', [PartnerIntegrationController::class, 'reportsSummary']);
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'admin.portal'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     Route::prefix('complaints')->group(function () {
@@ -195,6 +223,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/stats', [UserAccessController::class, 'stats']);
         Route::get('/lookups', [UserAccessController::class, 'lookups']);
         Route::get('/users', [UserAccessController::class, 'users']);
+        Route::get('/portal-reporters', [UserAccessController::class, 'portalReporters']);
         Route::post('/users', [UserAccessController::class, 'storeUser']);
         Route::get('/users/{id}', [UserAccessController::class, 'showUser'])->whereNumber('id');
         Route::put('/users/{id}', [UserAccessController::class, 'updateUser'])->whereNumber('id');
@@ -252,6 +281,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/systems/{id}', [IntegrationManagementController::class, 'updateSystem'])->whereNumber('id');
         Route::post('/systems/{id}/activate', [IntegrationManagementController::class, 'activateSystem'])->whereNumber('id');
         Route::post('/systems/{id}/deactivate', [IntegrationManagementController::class, 'deactivateSystem'])->whereNumber('id');
+        Route::post('/systems/{id}/test-connection', [IntegrationManagementController::class, 'testSystemConnection'])->whereNumber('id');
         Route::get('/systems/{id}/audit-logs', [IntegrationManagementController::class, 'auditLogs'])->whereNumber('id');
         Route::post('/systems/{id}/feeds', [IntegrationManagementController::class, 'storeFeed'])->whereNumber('id');
         Route::put('/feeds/{feedId}', [IntegrationManagementController::class, 'updateFeed'])->whereNumber('feedId');
@@ -263,6 +293,20 @@ Route::middleware('auth')->group(function () {
         Route::put('/webhooks/{webhookId}', [IntegrationManagementController::class, 'updateWebhook'])->whereNumber('webhookId');
         Route::post('/webhooks/{webhookId}/test', [IntegrationManagementController::class, 'testWebhook'])->whereNumber('webhookId');
         Route::get('/exposed-endpoints', [IntegrationManagementController::class, 'exposedEndpoints']);
+        Route::post('/exposed-endpoints', [IntegrationManagementController::class, 'storeExposedEndpoint']);
+        Route::put('/exposed-endpoints/{id}', [IntegrationManagementController::class, 'updateExposedEndpoint'])->whereNumber('id');
         Route::get('/sync-logs', [IntegrationManagementController::class, 'syncLogs']);
+    });
+
+    Route::prefix('developer-docs')->group(function () {
+        Route::get('/', [DeveloperDocumentationController::class, 'index']);
+        Route::get('/{slug}', [DeveloperDocumentationController::class, 'show']);
+    });
+
+    Route::prefix('channels/ussd')->group(function () {
+        Route::post('/simulate', [UssdGatewayController::class, 'simulate']);
+        Route::get('/schema', [UssdGatewayController::class, 'schema']);
+        Route::get('/sessions', [UssdGatewayController::class, 'sessions']);
+        Route::get('/sessions/{id}/events', [UssdGatewayController::class, 'sessionEvents'])->whereNumber('id');
     });
 });

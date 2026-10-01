@@ -12,12 +12,18 @@ class Complaint extends Model
         'complaint_code',
         'title',
         'description',
+        'occurrence_date',
+        'country_affected',
         'ntb_category_id',
         'activity_sector_id',
         'status_id',
         'priority',
         'country_origin',
         'country_destination',
+        'product_description',
+        'product_country_origin',
+        'product_value_currency',
+        'product_value_amount',
         'corridor_id',
         'location_id',
         'created_by',
@@ -39,6 +45,8 @@ class Complaint extends Model
     protected function casts(): array
     {
         return [
+            'occurrence_date' => 'date',
+            'product_value_amount' => 'decimal:2',
             'sla_deadline' => 'datetime',
             'closed_at' => 'datetime',
             'archived_at' => 'datetime',

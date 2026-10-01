@@ -16,4 +16,6 @@ export default [
   { titleKey: 'locations', icon: 'ti ti-map-pin', to: { name: 'admin-locations' }, permission: 'admin.locations' },
   { titleKey: 'audit', icon: 'ti ti-shield-check', to: { name: 'admin-audit' }, permission: 'audit.view' },
   { titleKey: 'integrations', icon: 'ti ti-plug-connected', to: { name: 'admin-integrations' }, permission: 'admin.integrations' },
+  { titleKey: 'ussdSimulator', icon: 'ti ti-device-mobile-message', to: { name: 'admin-ussd-simulator' }, permission: 'admin.integrations' },
+  { titleKey: 'developerDocs', icon: 'ti ti-book-2', to: { name: 'admin-developer-docs' }, permission: 'admin.integrations' },
 ]

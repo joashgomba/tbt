@@ -10,20 +10,24 @@ use App\Models\Institution;
 use App\Models\NtbCategory;
 use App\Models\SlaTracking;
 use App\Models\User;
+use App\Services\Ntb\ComplaintScopeService;
 use App\Services\Ntb\ComplaintWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ComplaintController extends Controller
 {
-    public function __construct(private readonly ComplaintWorkflowService $workflow) {}
+    public function __construct(
+        private readonly ComplaintWorkflowService $workflow,
+        private readonly ComplaintScopeService $scope,
+    ) {}
 
     public function stats(Request $request): JsonResponse
     {
-        $base = $this->scopedQuery($request);
+        $this->scope->authorizeView($request->user());
+        $base = $this->scope->scopeQuery($request->user());
 
         $terminal = ['closed', 'archived', 'rejected'];
         $open = (clone $base)->whereHas('status', fn ($q) => $q->whereNotIn('code', $terminal))->count();
@@ -78,7 +82,18 @@ class ComplaintController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = $this->scopedQuery($request)->with(['status', 'category', 'corridor', 'location', 'assignedInstitution', 'currentHandler']);
+        $user = $request->user();
+        $this->scope->authorizeView($user);
+
+        $query = $this->scope->scopeQuery($user)->with(['status', 'category', 'corridor', 'location', 'assignedInstitution', 'currentHandler']);
+
+        if ($request->filled('institution_id')) {
+            $institutionId = $request->integer('institution_id');
+            if ($user->institution_id && ! $this->scope->hasNationalVisibility($user) && $institutionId !== (int) $user->institution_id) {
+                abort(403, 'You cannot filter cases for another institution.');
+            }
+            $query->where('assigned_institution_id', $institutionId);
+        }
 
         if ($status = $request->string('status')->toString()) {
             $query->whereHas('status', fn ($q) => $q->where('code', $status));
@@ -94,7 +109,7 @@ class ComplaintController extends Controller
             };
         }
 
-        foreach (['category_id' => 'ntb_category_id', 'corridor_id' => 'corridor_id', 'institution_id' => 'assigned_institution_id'] as $param => $column) {
+        foreach (['category_id' => 'ntb_category_id', 'corridor_id' => 'corridor_id'] as $param => $column) {
             if ($request->filled($param)) {
                 $query->where($column, $request->integer($param));
             }
@@ -116,7 +131,10 @@ class ComplaintController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $complaint = $this->scopedQuery($request)
+        $user = $request->user();
+        $this->scope->authorizeView($user);
+
+        $complaint = $this->scope->scopeQuery($user)
             ->with([
                 'status', 'category.responsibleInstitution', 'corridor', 'location',
                 'assignedInstitution', 'currentHandler', 'histories.performer',
@@ -133,7 +151,7 @@ class ComplaintController extends Controller
 
         return response()->json([
             'complaint' => $complaint,
-            'allowed_transitions' => $this->workflow->allowedTransitions($complaint),
+            'allowed_transitions' => $this->workflow->allowedTransitionsForUser($complaint, $user),
             'audit_logs' => $auditLogs,
         ]);
     }
@@ -143,6 +161,7 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.validate');
         $data = $request->validate(['comment' => ['nullable', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->assertCanActOn($request, $complaint, true);
 
         $target = $complaint->status->code === ComplaintStatusCode::Submitted->value
             ? ComplaintStatusCode::UnderValidation->value
@@ -152,12 +171,17 @@ class ComplaintController extends Controller
             ? $this->assignmentPayload($request, $complaint)
             : [];
 
+        if ($target === ComplaintStatusCode::Assigned->value && empty($extra['assigned_institution_id'])) {
+            abort(422, 'A responsible institution must be assigned before the case can be marked as assigned.');
+        }
+
         $updated = $this->workflow->transition(
             $complaint,
             $target,
             $request->user()->id,
             $data['comment'] ?? ($target === ComplaintStatusCode::Assigned->value ? 'Case validated and assigned' : 'Case moved to validation'),
             $extra,
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -168,12 +192,15 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.validate');
         $data = $request->validate(['comment' => ['required', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->assertCanActOn($request, $complaint, true);
 
         $updated = $this->workflow->transition(
             $complaint,
             ComplaintStatusCode::Rejected->value,
             $request->user()->id,
             $data['comment'],
+            [],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -184,12 +211,15 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.validate');
         $data = $request->validate(['comment' => ['required', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->assertCanActOn($request, $complaint, true);
 
         $updated = $this->workflow->transition(
             $complaint,
             ComplaintStatusCode::AdditionalInfoRequested->value,
             $request->user()->id,
             $data['comment'],
+            [],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -205,6 +235,8 @@ class ComplaintController extends Controller
         ]);
 
         $complaint = $this->findScoped($request, $id);
+        $this->assertCanActOn($request, $complaint, true);
+
         $updated = $this->workflow->transition(
             $complaint,
             ComplaintStatusCode::Assigned->value,
@@ -214,6 +246,7 @@ class ComplaintController extends Controller
                 'assigned_institution_id' => $data['assigned_institution_id'],
                 'current_handler_id' => $data['current_handler_id'] ?? null,
             ],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -224,12 +257,15 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.process');
         $data = $request->validate(['comment' => ['nullable', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         $updated = $this->workflow->transition(
             $complaint,
             ComplaintStatusCode::InProcessing->value,
             $request->user()->id,
             $data['comment'] ?? null,
+            [],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -243,6 +279,7 @@ class ComplaintController extends Controller
             'comment' => ['nullable', 'string'],
         ]);
         $complaint = $this->findScoped($request, $id);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         $updated = $this->workflow->transition(
             $complaint,
@@ -250,6 +287,7 @@ class ComplaintController extends Controller
             $request->user()->id,
             $data['comment'] ?? 'Resolution proposed',
             ['resolution_note' => $data['resolution_note']],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -263,7 +301,7 @@ class ComplaintController extends Controller
             'closure_summary' => ['nullable', 'string'],
         ]);
         $complaint = $this->findScoped($request, $id);
-        $this->assertResponsibleInstitution($request, $complaint);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         $updated = $this->workflow->transition(
             $complaint,
@@ -271,6 +309,7 @@ class ComplaintController extends Controller
             $request->user()->id,
             $data['comment'] ?? 'Case closed',
             ['closure_summary' => $data['closure_summary'] ?? $data['comment'] ?? null],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -281,6 +320,7 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.close');
         $data = $request->validate(['comment' => ['nullable', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         if ($complaint->status->code !== ComplaintStatusCode::Closed->value) {
             abort(422, 'Only closed cases can be archived.');
@@ -291,6 +331,8 @@ class ComplaintController extends Controller
             ComplaintStatusCode::Archived->value,
             $request->user()->id,
             $data['comment'] ?? 'Case archived for retention',
+            [],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -301,6 +343,7 @@ class ComplaintController extends Controller
         $this->authorizePermission($request, 'complaints.reopen');
         $data = $request->validate(['comment' => ['required', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         $updated = $this->workflow->transition(
             $complaint,
@@ -308,6 +351,7 @@ class ComplaintController extends Controller
             $request->user()->id,
             $data['comment'],
             ['closed_at' => null, 'archived_at' => null],
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -325,6 +369,7 @@ class ComplaintController extends Controller
         ]);
 
         $complaint = $this->findScoped($request, $id);
+        $this->scope->assertCanMutate($request->user(), $complaint);
 
         Escalation::query()->create([
             'complaint_id' => $complaint->id,
@@ -336,11 +381,21 @@ class ComplaintController extends Controller
             'escalation_date' => now(),
         ]);
 
+        $extra = [];
+        if (! empty($data['escalated_to_institution_id'])) {
+            $extra['assigned_institution_id'] = $data['escalated_to_institution_id'];
+        }
+        if (! empty($data['escalated_to_user_id'])) {
+            $extra['current_handler_id'] = $data['escalated_to_user_id'];
+        }
+
         $updated = $this->workflow->transition(
             $complaint,
             ComplaintStatusCode::Escalated->value,
             $request->user()->id,
             $data['escalation_reason'],
+            $extra,
+            $request->user(),
         );
 
         return response()->json(['complaint' => $updated]);
@@ -348,8 +403,10 @@ class ComplaintController extends Controller
 
     public function comment(Request $request, int $id): JsonResponse
     {
+        $this->scope->authorizeView($request->user());
         $data = $request->validate(['comment' => ['required', 'string']]);
         $complaint = $this->findScoped($request, $id);
+        $this->assertCanActOn($request, $complaint, true);
 
         $history = $this->workflow->addComment(
             $complaint,
@@ -363,6 +420,7 @@ class ComplaintController extends Controller
 
     public function downloadAttachment(Request $request, int $id, int $attachmentId): StreamedResponse
     {
+        $this->scope->authorizeView($request->user());
         $complaint = $this->findScoped($request, $id);
         $attachment = $complaint->attachments()->findOrFail($attachmentId);
 
@@ -373,58 +431,47 @@ class ComplaintController extends Controller
 
     public function lookups(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $this->scope->authorizeView($user);
+
+        $institutionQuery = Institution::query()->orderBy('institution_name');
+        $handlerQuery = User::query()->whereNotNull('institution_id')->orderBy('name');
+
+        if ($user->institution_id && ! $this->scope->hasNationalVisibility($user)) {
+            $institutionQuery->where('id', $user->institution_id);
+            $handlerQuery->where('institution_id', $user->institution_id);
+        }
+
         return response()->json([
             'categories' => NtbCategory::query()->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name_en', 'name_fr']),
-            'institutions' => Institution::query()->orderBy('institution_name')->get(['id', 'institution_name']),
-            'handlers' => User::query()->whereNotNull('institution_id')->orderBy('name')->get(['id', 'name', 'institution_id']),
+            'institutions' => $institutionQuery->get(['id', 'institution_name']),
+            'handlers' => $handlerQuery->get(['id', 'name', 'institution_id']),
         ]);
-    }
-
-    private function scopedQuery(Request $request)
-    {
-        $query = Complaint::query();
-        $user = $request->user();
-
-        if ($user->can('complaints.view_all')) {
-            return $query;
-        }
-
-        if ($user->can('complaints.view_own')) {
-            return $query->where('created_by', $user->id);
-        }
-
-        if ($user->institution_id) {
-            return $query->where('assigned_institution_id', $user->institution_id);
-        }
-
-        return $query->whereRaw('1 = 0');
     }
 
     private function findScoped(Request $request, int $id): Complaint
     {
-        return $this->scopedQuery($request)->with('status')->findOrFail($id);
+        $this->scope->authorizeView($request->user());
+
+        return $this->scope->scopeQuery($request->user())->with('status')->findOrFail($id);
+    }
+
+    private function assertCanActOn(Request $request, Complaint $complaint, bool $allowNationalQueue = false): void
+    {
+        $user = $request->user();
+
+        if ($allowNationalQueue && ! $complaint->assigned_institution_id) {
+            abort_unless($this->scope->canValidateUnassigned($user), 403, 'National access is required for cases not yet assigned to an institution.');
+
+            return;
+        }
+
+        $this->scope->assertCanMutate($user, $complaint);
     }
 
     private function authorizePermission(Request $request, string $permission): void
     {
         abort_unless($request->user()?->can($permission), 403);
-    }
-
-    private function assertResponsibleInstitution(Request $request, Complaint $complaint): void
-    {
-        $user = $request->user();
-
-        if ($user->can('complaints.view_all') && ! $user->institution_id) {
-            return;
-        }
-
-        if ($user->can('complaints.view_all') && in_array('national_focal_point', $user->getRoleNames()->all(), true)) {
-            return;
-        }
-
-        if ($complaint->assigned_institution_id && $user->institution_id !== $complaint->assigned_institution_id) {
-            abort(403, 'Only the responsible institution may close this case.');
-        }
     }
 
     private function assignmentPayload(Request $request, Complaint $complaint): array

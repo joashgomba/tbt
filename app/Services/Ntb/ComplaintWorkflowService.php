@@ -9,6 +9,7 @@ use App\Models\ComplaintStatus;
 use App\Models\NtbCategory;
 use App\Models\SlaConfiguration;
 use App\Models\SlaTracking;
+use App\Models\User;
 use App\Models\WorkflowTransition;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -74,7 +75,10 @@ class ComplaintWorkflowService
             $this->recordHistory($complaint, 'SUBMITTED', null, $status->code, $userId, 'Complaint submitted');
             $this->startSla($complaint, 'VALIDATION', $this->slaHours('VALIDATION', $category->id, 16), $complaint->assigned_institution_id);
             $this->auditLogger->log('complaint.created', $complaint, null, $complaint->toArray());
-            $this->notifications->dispatch($complaint->fresh(['status']), 'complaint_created');
+            $complaint = $complaint->fresh(['status']);
+            $this->notifications->dispatch($complaint, 'complaint_created');
+            app(\App\Services\Ntb\Mobile\MobilePushNotificationService::class)
+                ->notifyReporterCaseSubmitted($complaint);
 
             return $complaint->load(['category', 'status', 'corridor', 'location']);
         });
@@ -86,13 +90,18 @@ class ComplaintWorkflowService
         ?int $userId = null,
         ?string $comment = null,
         array $extra = [],
+        ?User $actor = null,
     ): Complaint {
         $fromCode = $complaint->status->code;
-        $allowed = $this->allowedTransitions($complaint);
+        $allowed = $actor
+            ? $this->allowedTransitionsForUser($complaint, $actor)
+            : $this->allowedTransitions($complaint);
 
         if (! in_array($toStatusCode, $allowed, true)) {
             throw new InvalidArgumentException("Transition from {$fromCode} to {$toStatusCode} is not allowed.");
         }
+
+        $this->assertTransitionPermission($fromCode, $toStatusCode, $actor);
 
         $requiresComment = $this->transitionRequiresComment($fromCode, $toStatusCode);
 
@@ -124,7 +133,10 @@ class ComplaintWorkflowService
 
             $this->recordHistory($complaint, 'STATUS_CHANGED', $fromCode, $toStatusCode, $userId, $comment);
             $this->auditLogger->log('complaint.status_changed', $complaint, $old, $complaint->fresh()->toArray());
-            $this->dispatchStatusNotification($complaint->fresh(['status']), $fromCode, $toStatusCode);
+            $fresh = $complaint->fresh(['status']);
+            $this->dispatchStatusNotification($fresh, $fromCode, $toStatusCode);
+            app(\App\Services\Ntb\Mobile\MobilePushNotificationService::class)
+                ->notifyReporterStatusChange($fresh, $fromCode, $toStatusCode);
 
             if ($toStatusCode === ComplaintStatusCode::Assigned->value) {
                 $this->startSla($complaint, 'FIRST_RESPONSE', $this->slaHours('FIRST_RESPONSE', $complaint->ntb_category_id, 8), $complaint->assigned_institution_id);
@@ -161,6 +173,47 @@ class ComplaintWorkflowService
         $map = $this->transitionsMap();
 
         return $map[$complaint->status->code] ?? [];
+    }
+
+    /** @return list<string> */
+    public function allowedTransitionsForUser(Complaint $complaint, ?User $user): array
+    {
+        $allowed = $this->allowedTransitions($complaint);
+
+        if (! $user) {
+            return $allowed;
+        }
+
+        return array_values(array_filter(
+            $allowed,
+            fn (string $to) => $this->userCanTransition($complaint->status->code, $to, $user)
+        ));
+    }
+
+    private function assertTransitionPermission(string $from, string $to, ?User $user): void
+    {
+        if (! $user) {
+            return;
+        }
+
+        if (! $this->userCanTransition($from, $to, $user)) {
+            throw new InvalidArgumentException('You do not have permission for this workflow transition.');
+        }
+    }
+
+    private function userCanTransition(string $from, string $to, User $user): bool
+    {
+        $row = WorkflowTransition::query()
+            ->where('from_status', $from)
+            ->where('to_status', $to)
+            ->where('is_active', true)
+            ->first();
+
+        if ($row?->required_permission) {
+            return $user->can($row->required_permission);
+        }
+
+        return true;
     }
 
     /** @return array<string, list<string>> */
