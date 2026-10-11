@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/dev_api_override.dart';
 import '../../../core/config/local_api_hint.dart';
-import '../../../core/config/providers.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _devApiHost = TextEditingController();
   bool _busy = false;
   bool _obscure = true;
   String? _error;
@@ -31,7 +32,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _devApiHost.dispose();
     super.dispose();
+  }
+
+  Future<void> _applyDevApi(String url) async {
+    await ref.read(devApiBaseOverrideProvider.notifier).setOverride(url);
+    if (!mounted) return;
+    final s = ref.read(stringsProvider);
+    setState(() {
+      _error = null;
+      _errorHint = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('devApiApplied'))));
   }
 
   Future<void> _submit() async {
@@ -68,6 +81,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final auth = ref.watch(authControllerProvider);
     final checkingSession = auth.isLoading;
     final physicalApiHint = ref.watch(showPhysicalDeviceApiHintProvider);
+    final needsApiFix = !config.isProduction &&
+        (config.apiBaseUrl.contains('10.0.2.2') || _errorHint != null);
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.isLoading) return;
@@ -112,10 +127,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     AuthBrandMark(title: config.appName, subtitle: s.t('appTagline')),
                     const SizedBox(height: 16),
                     physicalApiHint.when(
-                      data: (show) => show
+                      data: (show) => show || needsApiFix
                           ? Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: _InfoBanner(text: s.t('physicalDeviceApiHint')),
+                              child: _DevApiFixCard(
+                                hostController: _devApiHost,
+                                activeApiUrl: config.apiBaseUrl,
+                                onUsb: () => _applyDevApi(DevApiPresets.usbLocalhost),
+                                onWifi: () {
+                                  final h = _devApiHost.text.trim();
+                                  if (h.isEmpty) return;
+                                  _applyDevApi(DevApiPresets.wifiHost(h));
+                                },
+                              ),
                             )
                           : const SizedBox.shrink(),
                       loading: () => const SizedBox.shrink(),
@@ -234,21 +258,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner({required this.text});
+class _DevApiFixCard extends ConsumerWidget {
+  const _DevApiFixCard({
+    required this.hostController,
+    required this.activeApiUrl,
+    required this.onUsb,
+    required this.onWifi,
+  });
 
-  final String text;
+  final TextEditingController hostController;
+  final String activeApiUrl;
+  final VoidCallback onUsb;
+  final VoidCallback onWifi;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(0.15),
+        color: AppColors.warning.withOpacity(0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.warning.withOpacity(0.45)),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12, height: 1.35, color: AppColors.ink)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(s.t('devApiFixTitle'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          const SizedBox(height: 6),
+          Text(s.t('physicalDeviceApiHint'), style: const TextStyle(fontSize: 11, height: 1.35, color: AppColors.inkMuted)),
+          const SizedBox(height: 10),
+          Text('${s.t('devApiCurrent')}: $activeApiUrl', style: const TextStyle(fontSize: 11, color: AppColors.ink)),
+          const SizedBox(height: 12),
+          Text(s.t('devApiUsbHint'), style: const TextStyle(fontSize: 11, color: AppColors.inkMuted)),
+          const SizedBox(height: 8),
+          OutlinedButton(onPressed: onUsb, child: Text(s.t('devApiUseUsb'))),
+          const SizedBox(height: 12),
+          TextField(
+            controller: hostController,
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(
+              labelText: s.t('devApiWifiHint'),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: onWifi, child: Text(s.t('devApiApply'))),
+        ],
+      ),
     );
   }
 }

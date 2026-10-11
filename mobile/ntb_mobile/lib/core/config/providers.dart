@@ -1,7 +1,2 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'app_config.dart';
-
-final appConfigProvider = Provider<AppConfig>((ref) {
-  throw UnimplementedError('AppConfig must be overridden in main()');
-});
+// App config providers live in dev_api_override.dart (compile-time + dev override).
+export 'dev_api_override.dart' show appConfigProvider, compileTimeAppConfigProvider;

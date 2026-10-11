@@ -15,7 +15,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
-        appConfigProvider.overrideWithValue(config),
+        compileTimeAppConfigProvider.overrideWithValue(config),
         sharedPreferencesProvider.overrideWithValue(prefs),
       ],
       child: const NtbApp(),
