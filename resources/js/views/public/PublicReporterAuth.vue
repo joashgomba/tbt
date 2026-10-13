@@ -44,6 +44,9 @@
         <div class="portal-field">
           <label for="login-password">{{ t('password') }} <span class="required" aria-hidden="true">*</span></label>
           <input id="login-password" v-model="loginForm.password" type="password" autocomplete="current-password" required />
+          <p class="portal-field__hint mt-2 mb-0">
+            <RouterLink :to="{ name: 'forgot-password' }">{{ t('forgotPassword') }}</RouterLink>
+          </p>
         </div>
         <div class="portal-field portal-field--full">
           <button type="submit" class="portal-btn portal-btn--accent" :disabled="loading" :aria-busy="loading">

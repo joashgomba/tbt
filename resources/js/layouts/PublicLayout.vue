@@ -1,5 +1,5 @@
 <template>
-  <div class="public-layout">
+  <div class="public-layout" :class="{ 'public-layout--locale-fr': locale === 'fr' }">
     <a href="#main-content" class="portal-skip-link">{{ t('skipToContent') }}</a>
 
     <div class="portal-trust-bar" role="complementary" :aria-label="t('officialPlatform')">

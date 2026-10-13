@@ -1,11 +1,21 @@
 <template>
-  <div class="layout-wrapper layout-content-navbar">
+  <div class="layout-wrapper layout-content-navbar layout-menu-fixed layout-menu-offcanvas">
     <div class="layout-container">
       <Sidebar />
+
+      <div class="layout-overlay" aria-hidden="true" @click="closeMobileMenu"></div>
 
       <div class="layout-page">
         <header class="layout-navbar navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme px-3">
           <div class="navbar-nav-right d-flex align-items-center w-100 gap-2">
+            <button
+              type="button"
+              class="btn btn-icon btn-outline-secondary d-xl-none layout-menu-toggle"
+              :aria-label="t('openMenu')"
+              @click="openMobileMenu"
+            >
+              <i class="ti ti-menu-2"></i>
+            </button>
             <div class="navbar-nav align-items-center flex-grow-1">
               <div class="nav-item d-flex align-items-center w-100">
                 <i class="ti ti-search fs-4 lh-0"></i>
@@ -44,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { useI18n } from '@/composables/useI18n'
@@ -58,6 +68,18 @@ watch(locale, (v) => { currentLocale.value = v })
 function onLocaleChange() {
   setLocale(currentLocale.value)
 }
+
+function openMobileMenu() {
+  document.documentElement.classList.add('layout-menu-expanded')
+}
+
+function closeMobileMenu() {
+  document.documentElement.classList.remove('layout-menu-expanded')
+}
+
+onUnmounted(() => {
+  closeMobileMenu()
+})
 
 async function doLogout() {
   await logout()

@@ -129,13 +129,14 @@
   text-decoration: none;
   color: var(--portal-text);
   min-width: 0;
-  flex-shrink: 1;
-  max-width: 14rem;
+  flex: 0 1 auto;
+  max-width: min(14rem, 42vw);
+  overflow: hidden;
 }
 
 @media (min-width: 1100px) {
   .portal-brand {
-    max-width: 18rem;
+    max-width: min(18rem, 38vw);
   }
 }
 
@@ -174,6 +175,9 @@
   font-size: 1rem;
   line-height: 1.2;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .portal-brand__subtitle {
@@ -208,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: flex-end;
   min-width: 0;
 }
@@ -1067,6 +1071,14 @@
   color: #991b1b;
 }
 
+.portal-duplicate-dialog {
+  padding: 1.25rem;
+  border-radius: var(--portal-radius);
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+
 .portal-alert--success {
   background: var(--portal-accent-soft);
   border: 1px solid #6ee7b7;
@@ -1403,7 +1415,147 @@
   color: #b91c1c;
 }
 
-/* Mobile nav */
+/* French desktop: brand on row 1, nav wraps on row 2 (long labels — DEF-001) */
+@media (min-width: 1280px) {
+  html[lang='fr'] .portal-header__inner,
+  .public-layout--locale-fr .portal-header__inner {
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 0.625rem;
+  }
+
+  html[lang='fr'] .portal-brand,
+  .public-layout--locale-fr .portal-brand {
+    flex: 1 1 auto;
+    max-width: 100%;
+    order: 1;
+  }
+
+  html[lang='fr'] .portal-brand__subtitle,
+  .public-layout--locale-fr .portal-brand__subtitle {
+    display: block;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.35;
+    max-width: 40rem;
+  }
+
+  html[lang='fr'] .portal-nav-toggle,
+  .public-layout--locale-fr .portal-nav-toggle {
+    display: none;
+  }
+
+  html[lang='fr'] .portal-nav,
+  .public-layout--locale-fr .portal-nav {
+    display: flex !important;
+    position: static;
+    flex: 1 1 100%;
+    width: 100%;
+    order: 2;
+    margin-left: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+  }
+
+  html[lang='fr'] .portal-nav__links,
+  .public-layout--locale-fr .portal-nav__links {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+
+  html[lang='fr'] .portal-nav__utilities,
+  .public-layout--locale-fr .portal-nav__utilities {
+    margin-left: auto;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--portal-border);
+  }
+}
+
+/* Collapsed nav (medium / small viewports — DEF-001) */
+@media (max-width: 1279px) {
+  .portal-nav-toggle {
+    display: inline-flex;
+  }
+
+  .portal-header__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.75rem;
+    position: relative;
+  }
+
+  .portal-brand {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 100%;
+  }
+
+  .portal-nav-toggle {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0;
+  }
+
+  .portal-nav {
+    display: none;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--portal-surface);
+    border-bottom: 1px solid var(--portal-border);
+    padding: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+    box-shadow: var(--portal-shadow);
+    margin-left: 0;
+    flex: none;
+    z-index: 20;
+  }
+
+  .portal-nav--open {
+    display: flex;
+  }
+
+  .portal-nav__links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .portal-nav__utilities {
+    flex-direction: column;
+    align-items: stretch;
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+    border-top: 1px solid var(--portal-border);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+  }
+
+  .portal-nav__link {
+    padding: 0.75rem 1rem;
+  }
+
+  .portal-header {
+    position: relative;
+  }
+
+  .portal-brand__subtitle {
+    display: none;
+  }
+}
+
+/* Mobile nav (legacy breakpoint — keep parity for small screens) */
 @media (max-width: 991px) {
   .portal-nav-toggle {
     display: inline-flex;

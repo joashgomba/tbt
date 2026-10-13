@@ -669,7 +669,7 @@ class UserAccessController extends Controller
 
     public function resetUserMfa(Request $request, int $id): JsonResponse
     {
-        abort_unless($request->user()?->can('admin.roles'), 403);
+        abort_unless($request->user()?->can('admin.users'), 403);
         $user = $this->scopedUser($request, $id);
         $this->mfa->resetForUser($user, $request->user());
 

@@ -17,8 +17,11 @@
         "phpoffice/phpspreadsheet": "^5.5",
         "picqer/php-barcode-generator": "^2.4",
         "predis/predis": "^3.5",
+        "railsware/mailtrap-php": "^3.16",
         "spatie/laravel-permission": "^6.21",
         "spatie/pdf-to-text": "^1.54",
+        "symfony/http-client": "^7.4",
+        "symfony/mailtrap-mailer": "^7.4",
         "thiagoalessio/tesseract_ocr": "^2.13"
     },
     "require-dev": {

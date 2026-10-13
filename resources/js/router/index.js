@@ -44,6 +44,18 @@ const router = createRouter({
       meta: { guest: true, public: true },
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/views/auth/ForgotPassword.vue'),
+      meta: { guest: true, public: true },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/auth/ResetPassword.vue'),
+      meta: { guest: true, public: true },
+    },
+    {
       path: '/login/mfa',
       name: 'admin-mfa-verify',
       component: () => import('@/views/auth/MfaVerify.vue'),

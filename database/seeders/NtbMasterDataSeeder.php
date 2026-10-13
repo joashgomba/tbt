@@ -38,6 +38,8 @@ class NtbMasterDataSeeder extends Seeder
 
         $institutions = [
             ['Ministry of Trade and Tourism', 'ministry', 'mtt@trade.dj'],
+            ['National Monitoring Committee (CNS)', 'national_committee', 'cns@trade.dj'],
+            ['Ministry of Transport', 'ministry', 'transport@trade.dj'],
             ['Djibouti Customs Authority', 'customs', 'customs@trade.dj'],
             ['Djibouti Port Authority', 'port', 'port@trade.dj'],
             ['National SPS Authority', 'sps', 'sps@trade.dj'],

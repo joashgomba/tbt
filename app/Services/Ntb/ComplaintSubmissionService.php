@@ -119,9 +119,9 @@ class ComplaintSubmissionService
             'priority' => 'MED',
         ], $user->id);
 
-        if ($attachmentRequest?->hasFile('attachments')) {
+        $files = $this->collectAttachmentFiles($attachmentRequest);
+        if ($files !== []) {
             $maxKb = $this->settings->maxUploadKb();
-            $files = $attachmentRequest->file('attachments');
             if (count($files) > 5) {
                 throw ValidationException::withMessages([
                     'attachments' => ['You can attach a maximum of 5 files.'],
@@ -143,5 +143,54 @@ class ComplaintSubmissionService
         }
 
         return $complaint->fresh(['category', 'status', 'corridor', 'location', 'attachments']);
+    }
+
+    public function validateAttachments(Request $request): void
+    {
+        $maxKb = $this->settings->maxUploadKb();
+        $files = $this->collectAttachmentFiles($request);
+
+        if (count($files) > 5) {
+            throw ValidationException::withMessages([
+                'attachments' => ['You can attach a maximum of 5 files.'],
+            ]);
+        }
+
+        foreach ($files as $index => $file) {
+            validator(
+                ['file' => $file],
+                [
+                    'file' => ['file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:'.$maxKb],
+                ],
+                [],
+                ["file" => "attachments.{$index}"],
+            )->validate();
+        }
+    }
+
+    /**
+     * @return list<\Illuminate\Http\UploadedFile>
+     */
+    private function collectAttachmentFiles(?Request $attachmentRequest): array
+    {
+        if ($attachmentRequest === null) {
+            return [];
+        }
+
+        $files = $attachmentRequest->file('attachments');
+        if ($files === null) {
+            foreach ($attachmentRequest->allFiles() as $key => $value) {
+                if (str_starts_with((string) $key, 'attachments')) {
+                    $files = $value;
+                    break;
+                }
+            }
+        }
+
+        if ($files === null) {
+            return [];
+        }
+
+        return is_array($files) ? array_values($files) : [$files];
     }
 }

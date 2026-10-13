@@ -98,6 +98,10 @@
               </div>
             </div>
 
+            <p class="admin-login__forgot mb-0">
+              <RouterLink :to="{ name: 'forgot-password' }">{{ t('forgotPassword') }}</RouterLink>
+            </p>
+
             <button type="submit" class="admin-login__submit" :disabled="loading" :aria-busy="loading">
               <i v-if="loading" class="ti ti-loader-2" aria-hidden="true"></i>
               <i v-else class="ti ti-login" aria-hidden="true"></i>

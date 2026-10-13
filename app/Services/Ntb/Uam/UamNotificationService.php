@@ -18,7 +18,12 @@ class UamNotificationService
             ->first();
 
         if (! $template) {
-            Log::info('UAM notification template missing', ['event' => $eventType, 'user_id' => $user->id]);
+            Log::warning('UAM notification template missing', ['event' => $eventType, 'user_id' => $user->id]);
+            if ($eventType === 'NTF-UAM-002' && ! empty($context['otp_code']) && $user->email) {
+                $this->sendOtpFallbackEmail($user, (string) $context['otp_code'], (string) ($context['method'] ?? 'email'));
+
+                return;
+            }
 
             return;
         }
@@ -91,6 +96,24 @@ class UamNotificationService
         }
 
         return null;
+    }
+
+    private function sendOtpFallbackEmail(User $user, string $otpCode, string $method): void
+    {
+        if (! $user->email) {
+            return;
+        }
+
+        try {
+            $subject = 'NTB Portal — verification code';
+            $body = "Your verification code is {$otpCode}. It expires in 10 minutes. Method: {$method}.";
+            Mail::raw($body, function ($mail) use ($user, $subject) {
+                $mail->to($user->email)->subject($subject);
+            });
+            Log::info('UAM OTP fallback email sent', ['user_id' => $user->id]);
+        } catch (\Throwable $e) {
+            Log::warning('UAM OTP fallback email failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+        }
     }
 
     private function deliver(NtbNotification $notification): void

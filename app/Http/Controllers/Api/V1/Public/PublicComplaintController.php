@@ -25,11 +25,7 @@ class PublicComplaintController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'You must be signed in to submit a complaint.');
 
-        $maxKb = $this->settings->maxUploadKb();
-        $request->validate([
-            'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:'.$maxKb],
-        ]);
+        $this->submissions->validateAttachments($request);
 
         try {
             $data = $this->submissions->validatePayload($request->all());

@@ -6,7 +6,7 @@
       <PublicStepIndicator :steps="wizardSteps" :current="step" :aria-label="`${t('step')} ${step} ${t('of')} 4`" />
     </div>
 
-    <form @submit.prevent="onSubmit" novalidate>
+    <form @submit.prevent="() => onSubmit()" novalidate>
       <div class="portal-wizard__body">
         <div v-if="reporter" class="portal-reporter-account mb-4" role="status">
           <div>
@@ -300,6 +300,17 @@
       <div v-if="submitError" class="portal-alert portal-alert--error mx-4 mb-4" role="alert">
         {{ submitError }}
       </div>
+
+      <div v-if="duplicatePrompt" class="portal-duplicate-dialog mx-4 mb-4" role="dialog" aria-labelledby="dup-title">
+        <h2 id="dup-title" class="h6 mb-2">{{ t('duplicateComplaintTitle') }}</h2>
+        <p class="mb-3">{{ t('duplicateComplaintMessage') }}</p>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="portal-btn portal-btn--outline" @click="duplicatePrompt = false">{{ t('cancel') }}</button>
+          <button type="button" class="portal-btn portal-btn--accent" :disabled="loading" @click="submitDespiteDuplicate">
+            {{ t('duplicateComplaintConfirm') }}
+          </button>
+        </div>
+      </div>
     </form>
   </div>
 </template>
@@ -324,6 +335,7 @@ const signingOut = ref(false)
 const loading = ref(false)
 const stepError = ref('')
 const submitError = ref('')
+const duplicatePrompt = ref(false)
 const files = ref([])
 const fileInput = ref(null)
 const errors = reactive({})
@@ -498,7 +510,7 @@ function formatSize(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`
 }
 
-async function onSubmit() {
+async function onSubmit(confirmDuplicate = false) {
   if (!validateStep(1)) {
     step.value = 1
     return
@@ -515,11 +527,13 @@ async function onSubmit() {
 
   loading.value = true
   submitError.value = ''
+  duplicatePrompt.value = false
   try {
     const payload = new FormData()
     Object.entries(form).forEach(([k, v]) => {
       if (v !== '' && v != null) payload.append(k, v)
     })
+    if (confirmDuplicate) payload.append('confirm_duplicate', '1')
     files.value.forEach((f) => payload.append('attachments[]', f))
     const { data } = await http.post('/public/complaints', payload)
     await router.push({
@@ -527,10 +541,23 @@ async function onSubmit() {
       params: { code: data.complaint.complaint_code },
     })
   } catch (e) {
-    submitError.value = e?.response?.data?.message || t('submissionFailed')
+    if (e?.response?.status === 409 && e?.response?.data?.duplicate_warning) {
+      duplicatePrompt.value = true
+      return
+    }
+    const errs = e?.response?.data?.errors
+    if (errs && typeof errs === 'object') {
+      submitError.value = Object.values(errs).flat().join(' ')
+    } else {
+      submitError.value = e?.response?.data?.message || t('submissionFailed')
+    }
   } finally {
     loading.value = false
   }
+}
+
+function submitDespiteDuplicate() {
+  onSubmit(true)
 }
 </script>
 

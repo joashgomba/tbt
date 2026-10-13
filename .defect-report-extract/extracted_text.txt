@@ -1,0 +1,89 @@
+PROTOTYPE DEFECT REPORT – NTB PLATFORM
+English translation of “Rapport des anomalies du prototype – Plateforme BNT”
+All original screenshots are reproduced from the source report. Text within screenshots remains in its original interface language.
+1. User Interface and Usability
+1.1. Logo Overlap with the Home and Report Buttons
+When the platform menu is displayed in French, the logo text overlaps with the “Home” button.
+Original screenshot: logo and navigation-button overlap
+1.2. Responsive Design Issue on the Administrative Platform (Web Responsive Test)
+Finding: The administrative platform interface does not adapt properly to smaller screens.
+When users access the platform from a tablet or mobile phone, the main navigation menu does not display correctly or is inaccessible.
+This issue makes navigation difficult, or even impossible, on tablets and mobile devices and prevents a consistent user experience across different screen sizes.
+The responsive design of the administrative platform should be reviewed so that the interface automatically adjusts to different screen resolutions.
+Original screenshot: mobile, tablet and desktop responsive-design test
+2. Login Form
+2.1. Missing Password Reset Functionality
+The user login form currently has no link or button allowing a user to reset a forgotten password.
+Impact: A user who forgets their password has no self-service mechanism for regaining access to their account.
+The user must currently contact a platform administrator, who then has to use the user management interface to reset the password.
+Recommendation
+Add a “Forgot password?” link to the login page.
+This link should allow users to initiate a secure password reset process themselves.
+The recommended process is:
+The user clicks “Forgot password?”.
+The user enters their email address or username.
+The system verifies the account.
+A secure, temporary password reset link is sent to the email address associated with the account.
+The user sets a new password.
+The reset link expires after a limited period and can only be used once.
+Public portal: original login-screen screenshot
+Administrative portal: original login-screen screenshot
+3. Multi-Factor Authentication (MFA)
+3.1. “Reset MFA” Button
+Original screenshot: “Reset MFA” control in the user administration interface
+Finding: The button currently labelled “Reset MFA” does not trigger any functional action.
+3.2. MFA Security Setting
+Original screenshot: MFA security configuration and verification method
+Original screenshot: MFA email verification code entry
+Finding: A security setting for configuring multi-factor authentication (MFA) is present on the platform.
+When MFA is configured using the email OTP option, the platform displays a message stating that a six-digit verification code has been sent to the user.
+However, after checking, no code is actually received in the user’s email inbox.
+Impact: This defect prevents users from correctly completing the activation or verification of MFA using an OTP.
+It also creates an inconsistency between the behaviour indicated by the interface and the actual operation of the code-delivery service.
+The following issues must be corrected:
+The “Reset MFA” button does not trigger any action.
+The six-digit OTP stated to have been sent is not received by the user.
+The operation of the email-sending service must be verified.
+The OTP generation, sending and validation process must be tested end to end.
+An MFA reset procedure must be provided for users who lose access to their second authentication factor.
+4. Dialog Boxes and User Experience
+4.1. Use of Native Browser Dialog Boxes
+Finding: During certain administrative operations, particularly when generating or entering text, the system displays a native browser dialog box when the “Suspend” and “Deactivate” buttons are clicked.
+In the screenshot, the message also displays the server’s IP address, for example:
+Original screenshot: native browser prompt displaying the server address
+This behaviour gives the impression of an unfinished application and is inappropriate for an institutional platform intended for production use.
+I recommend replacing the window.confirm() and window.prompt() dialogs with modal dialogs integrated directly into the platform interface.
+5. Submission of NTB Complaints / Cases
+5.1. Unable to Submit a Complaint
+Finding: It is currently not possible to submit an NTB complaint/case through:
+The public portal;
+The administrative portal.
+This defect blocks a core platform function: recording and submitting a non-tariff barrier.
+Original screenshot: complaint submission – description stage
+Original screenshot: complaint submission – location stage
+Original screenshot: complaint submission – affected products stage
+Original screenshot: complaint submission – documents stage and error message
+Original screenshot: complaint submission – additional user example
+Original screenshot: complaint submission error following attempted submission
+6. Institutional Model and Governance
+An institution is an administrative or official organisation to which an NTB case may be assigned for processing, monitoring or supervision.
+The following distinctions should be made:
+Institution: the body responsible for processing a case;
+User: a person who has an account;
+Role: the user’s permission level.
+Original screenshot: case assignments by institution
+6.1. Important Missing Institutions
+Analysis of the platform shows that certain institutions identified in the SDS are not yet represented, or are not clearly represented, in the system.
+National Monitoring Committee (CNS)
+The SDS assigns it a central role: “Coordination, arbitration and supervision”.
+The CNS should therefore be represented within the platform’s institutional/governance model and have access rights corresponding to its responsibilities.
+Ministry of Transport
+The SDS assigns it, in particular, responsibility for: “Coordination of corridor-related issues”.
+It should therefore be included among the institutions that can participate in processing NTB cases relating to transport and corridors.
+Original screenshot: role catalogue
+6. Roles and Permissions
+The section on roles is broadly consistent with the SDS. A technical error occurs when using the role-assignment function:
+Original screenshot: error displayed when applying role assignment
+Call to undefined relationship [role] on model [App\Models\UserRoleAssignment].
+Impact: This error probably indicates a problem with the relationship between the UserRoleAssignment model and the corresponding role model.
+Original screenshot: user list, assigned institutions, roles and status

@@ -140,13 +140,13 @@
                 <p v-if="selectedUser.organization_name" class="small"><strong>{{ t('organizationName') }}:</strong> {{ selectedUser.organization_name }}</p>
                 <p v-if="selectedUser.country" class="small"><strong>{{ t('country') }}:</strong> {{ selectedUser.country }}</p>
                 <p v-if="selectedUser.phone_number" class="small"><strong>{{ t('reporterPhone') }}:</strong> {{ selectedUser.phone_number }}</p>
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                  <button v-if="selectedUser.status !== 'active'" type="button" class="btn btn-sm btn-success" @click="userAction('activate')">{{ t('uamActivate') }}</button>
-                  <button v-if="selectedUser.status === 'active'" type="button" class="btn btn-sm btn-warning" @click="userAction('suspend')">{{ t('uamSuspend') }}</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" @click="userAction('deactivate')">{{ t('uamDeactivate') }}</button>
-                  <button v-if="selectedUser.status === 'locked'" type="button" class="btn btn-sm btn-outline-primary" @click="userAction('unlock')">{{ t('uamUnlock') }}</button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" @click="userAction('reset-password')">{{ t('uamResetPassword') }}</button>
-                  <button v-if="canManageRoles" type="button" class="btn btn-sm btn-outline-warning" @click="userAction('reset-mfa')">{{ t('uamResetMfa') }}</button>
+                <div v-if="canManageUsers" class="d-flex flex-wrap gap-2 mt-3">
+                  <button v-if="selectedUser.status !== 'active'" type="button" class="btn btn-sm btn-success" @click="executeUserAction('activate')">{{ t('uamActivate') }}</button>
+                  <button v-if="selectedUser.status === 'active'" type="button" class="btn btn-sm btn-warning" @click="openUserActionModal('suspend')">{{ t('uamSuspend') }}</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" @click="openUserActionModal('deactivate')">{{ t('uamDeactivate') }}</button>
+                  <button v-if="selectedUser.status === 'locked'" type="button" class="btn btn-sm btn-outline-primary" @click="executeUserAction('unlock')">{{ t('uamUnlock') }}</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" @click="openUserActionModal('reset-password')">{{ t('uamResetPassword') }}</button>
+                  <button type="button" class="btn btn-sm btn-outline-warning" @click="openUserActionModal('reset-mfa')">{{ t('uamResetMfa') }}</button>
                 </div>
                 <div v-if="userDetail?.permissions?.length" class="mt-4">
                   <h6 class="small fw-semibold">{{ t('uamEffectivePermissions') }}</h6>
@@ -428,6 +428,32 @@
       </div></div>
     </div>
 
+    <!-- User lifecycle action (no native prompt/confirm — DEF-006) -->
+    <div v-if="userActionModal" class="modal d-block" tabindex="-1" style="background:rgba(15,23,42,.45)">
+      <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ userActionModalTitle }}</h5>
+          <button type="button" class="btn-close" @click="closeUserActionModal"></button>
+        </div>
+        <div class="modal-body">
+          <p v-if="userActionModal === 'reset-mfa'" class="mb-0">{{ t('uamConfirmResetMfa') }}</p>
+          <p v-else-if="userActionModal === 'revoke-delegation'" class="mb-0">{{ t('uamConfirmRevoke') }}</p>
+          <div v-else-if="userActionModal === 'reset-password'" class="mb-0">
+            <label class="form-label" for="uam-new-password">{{ t('uamNewPassword') }}</label>
+            <input id="uam-new-password" v-model="userActionInput" type="password" class="form-control" autocomplete="new-password" minlength="8" />
+          </div>
+          <div v-else class="mb-0">
+            <label class="form-label" for="uam-action-reason">{{ t('uamReasonRequired') }}</label>
+            <textarea id="uam-action-reason" v-model="userActionInput" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeUserActionModal">{{ t('cancel') }}</button>
+          <button type="button" class="btn btn-primary" :disabled="userActionConfirmDisabled" @click="confirmUserActionModal">{{ t('confirm') }}</button>
+        </div>
+      </div></div>
+    </div>
+
     <!-- New access review -->
     <div v-if="showReviewModal" class="modal d-block" tabindex="-1" style="background:rgba(15,23,42,.45)">
       <div class="modal-dialog"><div class="modal-content">
@@ -488,6 +514,9 @@ const me = ref(null)
 const userFilters = ref({ search: '', institution_id: '', status: '', role: '', account_category: '' })
 const userForm = ref({ name: '', username: '', email: '', password: '', institution_id: '', role: 'institutional_officer', preferred_language: 'fr', account_category: 'institutional' })
 const delegationForm = ref({ delegator_id: '', delegate_id: '', starts_at: '', ends_at: '', reason: '' })
+const userActionModal = ref(null)
+const userActionInput = ref('')
+const pendingRevokeDelegation = ref(null)
 
 const canManageUsers = computed(() => me.value?.permissions?.includes('admin.users') ?? false)
 const canManageRoles = computed(() => me.value?.permissions?.includes('admin.roles') ?? false)
@@ -505,6 +534,22 @@ const tabs = computed(() => {
     { key: 'governance', label: t('uamTabGovernance'), icon: 'ti ti-shield-check' },
   )
   return list
+})
+
+const userActionModalTitle = computed(() => {
+  switch (userActionModal.value) {
+    case 'suspend': return t('uamSuspend')
+    case 'deactivate': return t('uamDeactivate')
+    case 'reset-password': return t('uamResetPassword')
+    case 'reset-mfa': return t('uamResetMfa')
+    case 'revoke-delegation': return t('uamConfirmRevoke')
+    default: return ''
+  }
+})
+
+const userActionConfirmDisabled = computed(() => {
+  if (userActionModal.value === 'reset-mfa' || userActionModal.value === 'revoke-delegation') return false
+  return !userActionInput.value.trim()
 })
 
 const overviewTiles = computed(() => {
@@ -722,28 +767,56 @@ async function createUser() {
   } catch (e) { error.value = e?.response?.data?.message || t('cmActionFailed') }
 }
 
-async function userAction(action) {
+function openUserActionModal(action) {
+  userActionModal.value = action
+  userActionInput.value = ''
+  pendingRevokeDelegation.value = null
+}
+
+function closeUserActionModal() {
+  userActionModal.value = null
+  userActionInput.value = ''
+  pendingRevokeDelegation.value = null
+}
+
+function openRevokeDelegationModal(d) {
+  pendingRevokeDelegation.value = d
+  userActionModal.value = 'revoke-delegation'
+  userActionInput.value = ''
+}
+
+async function confirmUserActionModal() {
+  if (userActionModal.value === 'revoke-delegation') {
+    const d = pendingRevokeDelegation.value
+    closeUserActionModal()
+    if (!d) return
+    try {
+      await http.post(`/uam/delegations/${d.id}/revoke`)
+      message.value = t('cmActionSuccess')
+      await loadDelegations()
+    } catch (e) { error.value = e?.response?.data?.message || t('cmActionFailed') }
+    return
+  }
+  const action = userActionModal.value
+  const extra = action === 'suspend' || action === 'deactivate'
+    ? { reason: userActionInput.value.trim() }
+    : action === 'reset-password'
+      ? { password: userActionInput.value }
+      : null
+  closeUserActionModal()
+  await executeUserAction(action, extra)
+}
+
+async function executeUserAction(action, extra = null) {
   const id = selectedUser.value?.id
   if (!id) return
   try {
     if (action === 'activate') await http.post(`/uam/users/${id}/activate`)
-    else if (action === 'suspend') {
-      const reason = prompt(t('uamReasonRequired'))
-      if (!reason) return
-      await http.post(`/uam/users/${id}/suspend`, { reason })
-    } else if (action === 'deactivate') {
-      const reason = prompt(t('uamReasonRequired'))
-      if (!reason) return
-      await http.post(`/uam/users/${id}/deactivate`, { reason })
-    } else if (action === 'unlock') await http.post(`/uam/users/${id}/unlock`)
-    else if (action === 'reset-password') {
-      const password = prompt(t('uamNewPassword'))
-      if (!password) return
-      await http.post(`/uam/users/${id}/reset-password`, { password })
-    } else if (action === 'reset-mfa') {
-      if (!confirm(t('uamConfirmResetMfa'))) return
-      await http.post(`/uam/users/${id}/reset-mfa`)
-    }
+    else if (action === 'suspend') await http.post(`/uam/users/${id}/suspend`, { reason: extra?.reason })
+    else if (action === 'deactivate') await http.post(`/uam/users/${id}/deactivate`, { reason: extra?.reason })
+    else if (action === 'unlock') await http.post(`/uam/users/${id}/unlock`)
+    else if (action === 'reset-password') await http.post(`/uam/users/${id}/reset-password`, { password: extra?.password })
+    else if (action === 'reset-mfa') await http.post(`/uam/users/${id}/reset-mfa`)
     message.value = t('cmActionSuccess')
     await loadAll()
     await selectUser(selectedUser.value)
@@ -751,10 +824,7 @@ async function userAction(action) {
 }
 
 async function revokeDelegation(d) {
-  if (!confirm(t('uamConfirmRevoke'))) return
-  await http.post(`/uam/delegations/${d.id}/revoke`)
-  message.value = t('cmActionSuccess')
-  await loadDelegations()
+  openRevokeDelegationModal(d)
 }
 
 async function createDelegation() {
